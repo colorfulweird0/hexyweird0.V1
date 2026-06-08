@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0E0E10;--bg2:#1A1A1E;--bg3:#242428;--bg4:#2E2E34;
+  --border:#333338;--border2:#444449;
+  --text:#F2F2F4;--text2:#9A9AA8;--text3:#5A5A68;
+  --accent:#FFB830;--accent2:#FF6B35;--teal:#88B7C5;
+  --pro:#A78BFA;--spectrum:#FFB830;
+  --r:14px;--r2:10px;
+}
+body{font-family:'DM Sans',sans-serif;background:#000;color:var(--text);overflow:hidden;height:100vh;user-select:none;display:flex;align-items:center;justify-content:center}
+.shell{width:375px;height:min(812px,calc(100vh - 20px));background:var(--bg);border-radius:44px;border:1.5px solid var(--border);overflow:hidden;position:relative;display:flex;flex-direction:column;margin:0 auto;box-shadow:0 40px 120px rgba(0,0,0,.8)}
+.status{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;flex-shrink:0}
+.status-time{font-family:'Space Mono',monospace;font-size:15px;font-weight:700}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;transition:opacity .22s,transform .22s;opacity:0;pointer-events:none;transform:translateX(16px)}
+.screen.active{opacity:1;pointer-events:all;transform:translateX(0)}
+.tabbar{height:83px;background:rgba(14,14,16,.95);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:flex-start;padding-top:10px;flex-shrink:0;position:relative;z-index:30}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;opacity:.45;transition:opacity .15s}
+.tab.on{opacity:1}
+.tab svg{width:24px;height:24px}
+.tab span{font-size:10px;font-weight:500;color:var(--text)}
+.tab.on span{color:var(--accent)}
+.tab.on svg path,.tab.on svg rect,.tab.on svg circle{stroke:var(--accent)!important}
+/* CAMERA */
+#cam{background:#000}
+.cam-view{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden}
+video{width:100%;height:100%;object-fit:cover}
+canvas#cap{display:none}
+.room-bg{position:absolute;inset:0;background:linear-gradient(160deg,#4a8fa8 0%,#3a7a94 25%,#2d6b85 45%,#1e4d62 65%,#132f3d 100%)}
+.room-shadow{position:absolute;bottom:0;left:0;right:0;height:220px;background:linear-gradient(transparent,rgba(0,0,0,.85))}
+.flash-overlay{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .05s;z-index:10}
+.grid-overlay{position:absolute;inset:0;pointer-events:none;z-index:8;opacity:0;transition:opacity .3s}
+.grid-overlay line{stroke:rgba(255,255,255,.35);stroke-width:1}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.tooltip{position:absolute;top:115px;left:50%;transform:translateX(-50%);background:rgba(30,30,35,.92);backdrop-filter:blur(12px);border:1px solid var(--border2);border-radius:12px;padding:8px 16px;font-size:13px;color:var(--text);white-space:nowrap;opacity:0;animation:fadeIn .5s .8s forwards;z-index:20}
+@keyframes fadeIn{to{opacity:1}}
+.crosshair{position:absolute;width:120px;height:120px;transform:translate(-50%,-50%);pointer-events:none;transition:left .06s,top .06s}
+.ch-circle{position:absolute;inset:0;border:1.5px solid rgba(255,255,255,.9);border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.3);transition:border-color .3s,box-shadow .3s}
+.ch-h{position:absolute;top:50%;left:50%;width:30px;height:1px;background:rgba(255,255,255,.8);transform:translateX(-50%) translateY(-50%)}
+.ch-v{position:absolute;top:50%;left:50%;width:1px;height:30px;background:rgba(255,255,255,.8);transform:translateX(-50%) translateY(-50%)}
+.ch-sq{position:absolute;top:50%;left:50%;width:10px;height:10px;border:1.5px solid rgba(255,255,255,.9);transform:translateX(-50%) translateY(-50%)}
+.ch-dash{position:absolute;inset:10px;border:1px dashed rgba(255,255,255,.3);border-radius:50%}
+.zoom-slider{writing-mode:vertical-lr;-webkit-appearance:none;width:4px;height:160px;background:rgba(255,255,255,.15);border-radius:2px;outline:none;cursor:pointer;transform:rotate(180deg)}
+.zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid rgba(255,255,255,.8);cursor:pointer}
+.tap-zone{position:absolute;top:44px;left:0;right:0;bottom:171px;cursor:crosshair;z-index:5}
+.flash-btn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.15);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s}
+.flash-btn.on{background:var(--accent)}
+.flash-btn svg{width:18px;height:18px}
+.recent-chip{width:44px;height:44px;border-radius:10px;flex-shrink:0;cursor:pointer;transition:all .12s;border:1.5px solid rgba(255,255,255,.08)}
+.recent-chip:hover{transform:scale(1.08)}
+.recent-chip.selected{border:2px solid var(--accent);transform:scale(1.12)}
+.hex-edit-overlay{position:absolute;bottom:178px;left:50%;transform:translateX(-50%);background:rgba(14,14,16,.97);backdrop-filter:blur(16px);border:1px solid var(--border2);border-radius:16px;padding:14px 18px;z-index:40;display:none;flex-direction:column;gap:10px;min-width:230px;box-shadow:0 8px 32px rgba(0,0,0,.7)}
+.hex-edit-overlay.show{display:flex}
+.hex-edit-title{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text2);text-transform:uppercase}
+.hex-edit-row{display:flex;align-items:center;gap:8px}
+.hex-edit-swatch{width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);flex-shrink:0}
+.hex-edit-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;font-family:'Space Mono',monospace;font-size:15px;color:var(--text);outline:none}
+.hex-edit-input:focus{border-color:var(--accent)}
+.hex-edit-btns{display:flex;gap:8px}
+.hex-edit-btn{flex:1;padding:8px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer}
+.hex-edit-save{background:var(--accent);color:#000}
+.hex-edit-cancel{background:var(--bg3);color:var(--text2)}
+/* DETAIL */
+#detail{background:var(--bg)}
+.detail-header{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.detail-back{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:15px;color:var(--teal)}
+.detail-scroll{flex:1;overflow-y:auto;padding-bottom:20px}
+.detail-scroll::-webkit-scrollbar{display:none}
+.swatch-big{height:200px;flex-shrink:0;transition:background .15s}
+.color-info-card{margin:0 16px 12px;background:var(--bg2);border-radius:var(--r);padding:16px}
+.hex-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.hex-val{font-family:'Space Mono',monospace;font-size:26px;font-weight:700;letter-spacing:-.5px}
+.copy-btn{width:38px;height:38px;border-radius:10px;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2)}
+.color-name-row{display:flex;align-items:center;gap:6px;color:var(--text2);font-size:14px}
+.values-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 12px}
+.val-card{background:var(--bg2);border-radius:var(--r2);padding:12px 14px}
+.val-label{font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.val-dot{width:7px;height:7px;border-radius:50%}
+.val-number{font-family:'Space Mono',monospace;font-size:12px;color:var(--text);line-height:1.4}
+.sliders-card{margin:0 16px 12px;background:var(--bg2);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.hue-slider{-webkit-appearance:none;width:100%;height:14px;border-radius:7px;outline:none;cursor:pointer;background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
+.hue-slider::-webkit-slider-thumb,.bright-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer}
+.bright-slider{-webkit-appearance:none;width:100%;height:14px;border-radius:7px;outline:none;cursor:pointer}
+.matches-section{margin:0 16px 12px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.section-title{font-size:14px;font-weight:600}
+.see-all{font-size:13px;color:var(--teal);cursor:pointer}
+.matches-row{display:flex;gap:8px}
+.match-chip{flex:1;border-radius:10px;overflow:hidden;cursor:pointer;transition:transform .1s}
+.match-chip:active{transform:scale(.96)}
+.match-swatch{height:52px}
+.match-hex{font-family:'Space Mono',monospace;font-size:9px;color:var(--text2);padding:4px 4px 0;text-align:center;background:var(--bg2);border-radius:0 0 10px 10px}
+.action-row{display:flex;gap:6px;padding:0 16px;margin-top:4px}
+.action-btn{flex:1;background:var(--bg2);border-radius:12px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;border:1px solid var(--border);transition:background .12s}
+.action-btn:active{background:var(--bg3)}
+.action-btn svg{width:20px;height:20px}
+.action-btn span{font-size:10px;color:var(--text2);text-align:center;line-height:1.2}
+/* PALETTES */
+#palettes{background:var(--bg)}
+.pal-header{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0}
+.pal-title{font-size:28px;font-weight:700;letter-spacing:-.5px}
+.search-bar{margin:0 16px 14px;display:flex;align-items:center;gap:8px;background:var(--bg2);border-radius:12px;padding:0 14px;height:40px}
+.search-bar input{background:none;border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);flex:1}
+.search-bar input::placeholder{color:var(--text3)}
+.pal-list{flex:1;overflow-y:auto;padding:0 16px 16px}
+.pal-list::-webkit-scrollbar{display:none}
+.pal-item{margin-bottom:20px}
+.pal-item-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.pal-name{font-size:15px;font-weight:600}
+.pal-count{font-size:12px;color:var(--text2);margin-top:1px}
+.pal-chips{display:flex;gap:6px}
+.pal-chip{flex:1;height:44px;border-radius:8px;cursor:pointer;transition:transform .1s}
+.pal-chip:active{transform:scale(.96)}
+.stat-bar{height:58px;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 16px;flex-shrink:0}
+.stat-item{display:flex;flex-direction:column;align-items:flex-start;flex:1}
+.stat-item+.stat-item{border-left:1px solid var(--border);padding-left:16px}
+.stat-val{font-size:18px;font-weight:700}
+.stat-lbl{font-size:10px;color:var(--text2)}
+.stat-grid{width:44px;height:44px;display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-left:auto}
+.stat-grid-dot{border-radius:4px}
+/* TOOLS */
+#tools{background:var(--bg)}
+.tools-header{height:54px;display:flex;align-items:center;padding:0 20px;flex-shrink:0}
+.tools-title{font-size:28px;font-weight:700;letter-spacing:-.5px}
+.tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px;overflow-y:auto;flex:1;align-content:start}
+.tools-grid::-webkit-scrollbar{display:none}
+.tool-card{background:var(--bg2);border-radius:var(--r);padding:18px 16px;cursor:pointer;border:1px solid var(--border);transition:background .12s;position:relative}
+.tool-card:active{background:var(--bg3)}
+.tool-card.locked{opacity:.75}
+.tool-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:24px}
+.tool-name{font-size:13px;font-weight:700;margin-bottom:4px}
+.tool-desc{font-size:11px;color:var(--text2);line-height:1.4}
+.lock-badge{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;padding:3px 7px;border-radius:20px;letter-spacing:.04em}
+.lock-pro{background:rgba(167,139,250,.2);color:var(--pro);border:1px solid rgba(167,139,250,.3)}
+.lock-spectrum{background:rgba(255,184,48,.15);color:var(--spectrum);border:1px solid rgba(255,184,48,.3)}
+/* TOOL SCREENS */
+.tool-screen{background:var(--bg)}
+.tool-header{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.tool-back{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:15px;color:var(--teal)}
+.tool-screen-title{font-size:16px;font-weight:600}
+.tool-body{flex:1;overflow-y:auto;padding:16px}
+.tool-body::-webkit-scrollbar{display:none}
+.t-label{font-size:11px;font-weight:600;letter-spacing:.07em;color:var(--text3);text-transform:uppercase;margin-bottom:8px}
+.t-card{background:var(--bg2);border-radius:var(--r);padding:16px;margin-bottom:14px;border:1px solid var(--border)}
+.t-swatch-row{display:flex;gap:10px;margin-bottom:12px}
+.t-swatch{height:56px;border-radius:10px;flex:1;cursor:pointer;border:2px solid transparent;transition:border-color .15s}
+.t-swatch.active{border-color:var(--accent)}
+.t-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:14px;color:var(--text);outline:none;margin-bottom:10px}
+.t-input:focus{border-color:var(--accent)}
+.t-result{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:var(--accent);text-align:center;padding:12px 0 4px}
+.t-btn{width:100%;padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px}
+.t-btn-ghost{background:var(--bg3);color:var(--text);border:1px solid var(--border2)}
+.harmony-row{display:flex;gap:6px;margin-bottom:10px}
+.harmony-chip{flex:1;height:52px;border-radius:8px;display:flex;align-items:flex-end;padding:4px;cursor:pointer}
+.harmony-hex{font-family:'Space Mono',monospace;font-size:8px;color:rgba(255,255,255,.8);background:rgba(0,0,0,.35);border-radius:4px;padding:1px 3px}
+.a11y-filter{padding:10px 14px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.a11y-filter.on{border-color:var(--teal);background:rgba(136,183,197,.08)}
+.a11y-name{font-size:13px;font-weight:600}
+.a11y-desc{font-size:11px;color:var(--text2)}
+.export-option{padding:12px 14px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;transition:background .12s}
+.export-option:active{background:var(--bg4)}
+.export-name{font-size:13px;font-weight:600}
+.export-ext{font-family:'Space Mono',monospace;font-size:10px;color:var(--text2);margin-top:2px}
+.photo-drop{border:2px dashed var(--border2);border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;margin-bottom:14px;transition:border-color .15s}
+.photo-drop:hover{border-color:var(--teal)}
+.photo-drop-icon{font-size:36px;margin-bottom:8px}
+.photo-drop-text{font-size:13px;color:var(--text2)}
+.palette-from-photo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
+.pfp-chip{height:48px;border-radius:8px;cursor:pointer;border:1.5px solid transparent;transition:all .12s}
+.pfp-chip:hover{transform:scale(1.06);border-color:var(--accent)}
+/* PAYWALL */
+.paywall{position:absolute;inset:0;background:var(--bg);z-index:100;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .22s;transform:translateY(20px)}
+.paywall.show{opacity:1;pointer-events:all;transform:translateY(0)}
+.paywall-close{position:absolute;top:16px;right:20px;font-size:24px;cursor:pointer;color:var(--text2);z-index:10;background:none;border:none}
+.paywall-scroll{flex:1;overflow-y:auto;padding:20px 20px 0}
+.paywall-scroll::-webkit-scrollbar{display:none}
+.paywall-hero{text-align:center;padding:24px 0 20px}
+.paywall-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;padding:4px 12px;border-radius:20px;margin-bottom:12px}
+.paywall-badge.pro{background:rgba(167,139,250,.2);color:var(--pro);border:1px solid rgba(167,139,250,.4)}
+.paywall-badge.spectrum{background:rgba(255,184,48,.15);color:var(--spectrum);border:1px solid rgba(255,184,48,.4)}
+.paywall-title{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px}
+.paywall-sub{font-size:13px;color:var(--text2);line-height:1.5;padding:0 10px}
+.paywall-features{margin:16px 0}
+.paywall-feature{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.paywall-feature-dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px}
+.paywall-feature-dot.pro{background:rgba(167,139,250,.2);color:var(--pro)}
+.paywall-feature-dot.spectrum{background:rgba(255,184,48,.15);color:var(--spectrum)}
+.paywall-feature-text{font-size:13px;color:var(--text);line-height:1.4}
+.paywall-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.plan-card{background:var(--bg2);border-radius:var(--r);padding:16px 14px;border:1.5px solid var(--border);cursor:pointer;transition:border-color .15s;position:relative;overflow:visible}
+.plan-card.selected{border-color:var(--accent)}
+.plan-popular{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:9px;font-weight:700;padding:3px 10px;border-radius:10px;white-space:nowrap;letter-spacing:.05em}
+.plan-name{font-size:13px;font-weight:700;margin-bottom:4px}
+.plan-price{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:var(--accent)}
+.plan-period{font-size:10px;color:var(--text2)}
+.plan-save{font-size:10px;color:#4ade80;margin-top:3px}
+.paywall-cta{margin:0 0 16px;padding:14px;background:var(--accent);color:#000;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%}
+.paywall-restore{text-align:center;font-size:12px;color:var(--text3);cursor:pointer;padding-bottom:20px}
+/* QUALITY TIP */
+.quality-tip{position:absolute;bottom:210px;left:50%;transform:translateX(-50%) translateY(0);background:rgba(255,184,48,.15);backdrop-filter:blur(12px);border:1px solid rgba(255,184,48,.4);border-radius:20px;padding:7px 16px;font-size:12px;font-weight:500;color:#FFB830;white-space:nowrap;pointer-events:none;z-index:25;display:flex;align-items:center;gap:6px;opacity:0;transition:opacity .4s;letter-spacing:.01em}
+.quality-tip.show{opacity:1}
+.quality-tip-icon{font-size:14px}
+
+/* TOAST */
+.toast{position:absolute;bottom:96px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--accent);color:#000;font-size:13px;font-weight:600;padding:8px 20px;border-radius:20px;opacity:0;transition:all .2s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="shell" id="shell">
+
+<!-- CAMERA -->
+<div class="screen active" id="cam">
+  <div class="status" style="position:absolute;top:0;left:0;right:0;z-index:30;background:linear-gradient(to bottom,rgba(0,0,0,.65),transparent)">
+    <span class="status-time">9:41</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <svg width="17" height="12" fill="white" viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity=".35"/><rect x="1.5" y="1.5" width="17" height="9" rx="2.5" fill="white"/></svg>
+    </div>
+  </div>
+  <div class="cam-view">
+    <div class="room-bg" id="roomBg"></div>
+    <video id="video" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none"></video>
+    <canvas id="cap"></canvas>
+    <div class="flash-overlay" id="flashOverlay"></div>
+    <svg class="grid-overlay" id="gridOverlay" viewBox="0 0 375 600" preserveAspectRatio="none">
+      <line x1="125" y1="0" x2="125" y2="600"/>
+      <line x1="250" y1="0" x2="250" y2="600"/>
+      <line x1="0" y1="200" x2="375" y2="200"/>
+      <line x1="0" y1="400" x2="375" y2="400"/>
+    </svg>
+    <div class="room-shadow"></div>
+  </div>
+  <div style="position:absolute;top:44px;left:0;right:0;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;z-index:20">
+    <div style="display:flex;align-items:center;gap:9px">
+      <img src="data:image/png;base64,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" style="width:32px;height:32px;border-radius:6px;object-fit:contain">
+      <div style="line-height:1.1"><b style="font-size:13px;font-weight:600;display:block">Hexy</b><span style="font-size:11px;color:var(--text2)">Weird0</span></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="flash-btn" id="flashBtn" onclick="toggleFlash()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </button>
+      <div id="gridBtn" style="background:rgba(255,255,255,.12);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="toggleGrid()" title="Rule of thirds grid">
+        <svg width="18" height="18" fill="none" stroke="white" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+      </div>
+    </div>
+  </div>
+  <div class="tap-zone" id="tapZone">
+    <div class="crosshair" id="crosshair" style="left:50%;top:45%">
+      <div class="ch-circle"></div><div class="ch-dash"></div>
+      <div class="ch-h"></div><div class="ch-v"></div><div class="ch-sq"></div>
+    </div>
+  </div>
+  <div style="position:absolute;right:16px;top:50%;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;align-items:center;gap:6px">
+    <span style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(255,255,255,.7)">8x</span>
+    <input type="range" class="zoom-slider" id="zoomSlider" min="1" max="8" value="1" step=".1" oninput="applyZoom(this.value)">
+    <span style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(255,255,255,.7)" id="zoomCur">1x</span>
+  </div>
+  <div style="position:absolute;bottom:200px;left:50%;transform:translateX(-50%);background:rgba(20,20,24,.9);border:1px solid var(--border2);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--text);white-space:nowrap;z-index:20;pointer-events:none">TAP SCREEN TO SAMPLE</div>
+  <div class="hex-edit-overlay" id="hexEditOverlay">
+    <div class="hex-edit-title">Edit HEX Code</div>
+    <div class="hex-edit-row"><div class="hex-edit-swatch" id="hexEditSwatch"></div><input class="hex-edit-input" id="hexEditInput" type="text" maxlength="7" spellcheck="false"></div>
+    <div class="hex-edit-btns"><button class="hex-edit-btn hex-edit-save" onclick="saveHexEdit()">Save</button><button class="hex-edit-btn hex-edit-cancel" onclick="closeHexEdit()">Cancel</button></div>
+  </div>
+  <!-- Quality tip -->
+  <div class="quality-tip" id="qualityTip">
+    <span class="quality-tip-icon">🔍</span>
+    Move in for better color quality
+  </div>
+
+  <div style="position:absolute;bottom:83px;left:0;right:0;height:88px;background:rgba(14,14,16,.93);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:8px;z-index:20">
+    <span style="font-size:11px;color:var(--text2);white-space:nowrap;margin-right:2px">Recent</span>
+    <div id="recentChips" style="display:flex;gap:8px;flex:1;overflow-x:auto"></div>
+    <span style="font-size:11px;color:var(--teal);white-space:nowrap;cursor:pointer;margin-left:4px" onclick="clearRecents()">Clear</span>
+  </div>
+  <div class="tabbar" style="position:absolute;bottom:0;left:0;right:0">
+    <div class="tab on" onclick="switchTab('cam')"><svg viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="white" stroke-width="1.8"/><circle cx="12" cy="13" r="4" stroke="white" stroke-width="1.8"/></svg><span>Camera</span></div>
+    <div class="tab" onclick="switchTab('palettes')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="1.8"/><circle cx="8" cy="9" r="1.5" fill="white"/><circle cx="16" cy="9" r="1.5" fill="white"/><circle cx="12" cy="15" r="1.5" fill="white"/></svg><span>Palettes</span></div>
+    <div class="tab" onclick="switchTab('colors')"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/></svg><span>Colors</span></div>
+    <div class="tab" onclick="switchTab('tools')"><svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="white" stroke-width="1.8"/></svg><span>Tools</span></div>
+  </div>
+</div>
+
+<!-- COLOR DETAIL -->
+<div class="screen" id="detail">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div class="detail-header">
+    <div class="detail-back" onclick="showCam()"><svg width="10" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 10 16"><path d="M8 1L2 8l6 7"/></svg><span style="font-size:14px">Back</span></div>
+    <span style="font-size:16px;font-weight:600">Sampled Color</span>
+    <div style="display:flex;gap:16px;color:var(--text2)"><span onclick="toggleSave()" id="heartBtn" style="cursor:pointer;font-size:20px">&#9825;</span><span style="cursor:pointer;font-size:20px">&#8943;</span></div>
+  </div>
+  <div class="detail-scroll">
+    <div class="swatch-big" id="bigSwatch"></div>
+    <div class="color-info-card">
+      <div class="hex-row"><span class="hex-val" id="hexVal">#88B7C5</span>
+        <div class="copy-btn" onclick="copyHex()"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div>
+      </div>
+      <div class="color-name-row"><span id="colorNameVal">Ocean Mist</span><span style="font-size:14px;cursor:pointer;opacity:.6">&#9999;&#65039;</span></div>
+    </div>
+    <div class="values-grid">
+      <div class="val-card"><div class="val-label"><div class="val-dot" style="background:#FF6B6B"></div>RGB</div><div class="val-number" id="rgbVal">136, 183, 197</div></div>
+      <div class="val-card"><div class="val-label"><div class="val-dot" style="background:#6BF5D0"></div>HSL</div><div class="val-number" id="hslVal">193, 33%, 65%</div></div>
+      <div class="val-card"><div class="val-label"><div class="val-dot" style="background:#FFB830"></div>CMYK</div><div class="val-number" id="cmykVal">31%, 7%, 0%, 23%</div></div>
+      <div class="val-card"><div class="val-label"><div class="val-dot" style="background:#A78BFA"></div>HEX</div><div class="val-number" id="hexVal2">#88B7C5</div></div>
+    </div>
+    <div class="sliders-card">
+      <input type="range" class="hue-slider" id="hueSlider" min="0" max="360" value="193" oninput="onHueChange(this.value)">
+      <input type="range" id="brightSlider" class="bright-slider" min="0" max="100" value="65" oninput="onBrightChange(this.value)" style="background:linear-gradient(to right,#111,#88B7C5)">
+    </div>
+    <div class="matches-section">
+      <div class="section-header"><span class="section-title">Closest Matches</span><span class="see-all">See All</span></div>
+      <div class="matches-row" id="matchesRow"></div>
+    </div>
+    <div class="action-row">
+      <div class="action-btn" onclick="copyHex()"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add to Palette</span></div>
+      <div class="action-btn" onclick="copyCSS()"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>CSS Export</span></div>
+      <div class="action-btn" onclick="checkTierFromDetail('pro')"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M12 8v8M8 12h8"/></svg><span>Figma</span></div>
+      <div class="action-btn" onclick="checkTierFromDetail('spectrum')"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>Export</span></div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on" onclick="switchTab('cam')"><svg viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="white" stroke-width="1.8"/><circle cx="12" cy="13" r="4" stroke="white" stroke-width="1.8"/></svg><span>Camera</span></div>
+    <div class="tab" onclick="switchTab('palettes')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="1.8"/><circle cx="8" cy="9" r="1.5" fill="white"/><circle cx="16" cy="9" r="1.5" fill="white"/><circle cx="12" cy="15" r="1.5" fill="white"/></svg><span>Palettes</span></div>
+    <div class="tab" onclick="switchTab('colors')"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/></svg><span>Colors</span></div>
+    <div class="tab" onclick="switchTab('tools')"><svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="white" stroke-width="1.8"/></svg><span>Tools</span></div>
+  </div>
+</div>
+
+<!-- PALETTES -->
+<div class="screen" id="palettes">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div class="pal-header"><span class="pal-title">Palettes</span><span style="font-size:26px;color:var(--text2);cursor:pointer">+</span></div>
+  <div class="search-bar"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="opacity:.4;flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input placeholder="Search palettes" type="text"></div>
+  <div class="pal-list" id="palList"></div>
+  <div class="stat-bar">
+    <div class="stat-item"><div class="stat-val">48</div><div class="stat-lbl">Saved Colors</div></div>
+    <div class="stat-item" style="padding-left:20px;margin-left:16px"><div class="stat-val">8</div><div class="stat-lbl">Palettes</div></div>
+    <div class="stat-grid" style="margin-left:auto"><div class="stat-grid-dot" style="background:#88B7C5"></div><div class="stat-grid-dot" style="background:#F4A261"></div><div class="stat-grid-dot" style="background:#9B7FA6"></div><div class="stat-grid-dot" style="background:#5A8A72"></div></div>
+  </div>
+  <div class="tabbar">
+    <div class="tab" onclick="switchTab('cam')"><svg viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="white" stroke-width="1.8"/><circle cx="12" cy="13" r="4" stroke="white" stroke-width="1.8"/></svg><span>Camera</span></div>
+    <div class="tab on" onclick="switchTab('palettes')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="1.8"/><circle cx="8" cy="9" r="1.5" fill="white"/><circle cx="16" cy="9" r="1.5" fill="white"/><circle cx="12" cy="15" r="1.5" fill="white"/></svg><span>Palettes</span></div>
+    <div class="tab" onclick="switchTab('colors')"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/></svg><span>Colors</span></div>
+    <div class="tab" onclick="switchTab('tools')"><svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="white" stroke-width="1.8"/></svg><span>Tools</span></div>
+  </div>
+</div>
+
+<!-- COLORS -->
+<div class="screen" id="colors">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div style="padding:16px 20px 0"><span style="font-size:28px;font-weight:700;letter-spacing:-.5px">Colors</span></div>
+  <div id="colorGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px;overflow-y:auto;flex:1"></div>
+  <div class="tabbar">
+    <div class="tab" onclick="switchTab('cam')"><svg viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="white" stroke-width="1.8"/><circle cx="12" cy="13" r="4" stroke="white" stroke-width="1.8"/></svg><span>Camera</span></div>
+    <div class="tab" onclick="switchTab('palettes')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="1.8"/><circle cx="8" cy="9" r="1.5" fill="white"/><circle cx="16" cy="9" r="1.5" fill="white"/><circle cx="12" cy="15" r="1.5" fill="white"/></svg><span>Palettes</span></div>
+    <div class="tab on" onclick="switchTab('colors')"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/></svg><span>Colors</span></div>
+    <div class="tab" onclick="switchTab('tools')"><svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="white" stroke-width="1.8"/></svg><span>Tools</span></div>
+  </div>
+</div>
+
+<!-- TOOLS LIST -->
+<div class="screen" id="tools">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div class="tools-header"><span class="tools-title">Tools</span></div>
+  <div class="tools-grid">
+    <div class="tool-card" onclick="openTool('contrast')"><div class="tool-icon" style="background:rgba(255,184,48,.12)">&#9878;&#65039;</div><div class="tool-name">Contrast Checker</div><div class="tool-desc">Check WCAG accessibility contrast ratios</div></div>
+    <div class="tool-card" onclick="openTool('colorname')"><div class="tool-icon" style="background:rgba(136,183,197,.12)">&#127991;&#65039;</div><div class="tool-name">Color Name</div><div class="tool-desc">954 XKCD named colors database</div></div>
+    <div class="tool-card locked" onclick="checkTier('pro','pfp')"><span class="lock-badge lock-pro">PRO</span><div class="tool-icon" style="background:rgba(155,127,166,.12)">&#128444;&#65039;</div><div class="tool-name">Palette from Photo</div><div class="tool-desc">Extract a full palette from any image</div></div>
+    <div class="tool-card" onclick="openTool('a11y')"><div class="tool-icon" style="background:rgba(90,138,114,.12)">&#9855;</div><div class="tool-name">Accessibility</div><div class="tool-desc">Simulate color blindness modes (A11y)</div></div>
+    <div class="tool-card locked" onclick="checkTier('pro','harmonies')"><span class="lock-badge lock-pro">PRO</span><div class="tool-icon" style="background:rgba(244,162,97,.12)">&#127912;</div><div class="tool-name">Harmonies</div><div class="tool-desc">Complementary, triadic &amp; analogous</div></div>
+    <div class="tool-card locked" onclick="checkTier('spectrum','export')"><span class="lock-badge lock-spectrum">SPECTRUM</span><div class="tool-icon" style="background:rgba(255,107,53,.12)">&#128230;</div><div class="tool-name">Export Suite</div><div class="tool-desc">CSS, SCSS, Figma tokens, Adobe ASE</div></div>
+  </div>
+  <div class="tabbar" style="margin-top:auto">
+    <div class="tab" onclick="switchTab('cam')"><svg viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="white" stroke-width="1.8"/><circle cx="12" cy="13" r="4" stroke="white" stroke-width="1.8"/></svg><span>Camera</span></div>
+    <div class="tab" onclick="switchTab('palettes')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="1.8"/><circle cx="8" cy="9" r="1.5" fill="white"/><circle cx="16" cy="9" r="1.5" fill="white"/><circle cx="12" cy="15" r="1.5" fill="white"/></svg><span>Palettes</span></div>
+    <div class="tab" onclick="switchTab('colors')"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="white" stroke-width="1.8"/></svg><span>Colors</span></div>
+    <div class="tab on" onclick="switchTab('tools')"><svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="white" stroke-width="1.8"/></svg><span>Tools</span></div>
+  </div>
+</div>
+
+<!-- TOOL: CONTRAST CHECKER -->
+<div class="screen tool-screen" id="t-contrast">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div class="tool-header"><div class="tool-back" onclick="switchTab('tools')"><svg width="10" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 10 16"><path d="M8 1L2 8l6 7"/></svg><span style="font-size:14px">Tools</span></div><span class="tool-screen-title">Contrast Checker</span><span></span></div>
+  <div class="tool-body">
+    <div class="t-card">
+      <div class="t-label">Foreground</div>
+      <div class="t-swatch-row"><div class="t-swatch active" id="cc-fg-swatch" style="background:#FFFFFF" onclick="setContrastActive('fg')"></div></div>
+      <input class="t-input" id="cc-fg" value="#FFFFFF" maxlength="7" oninput="updateContrast()" placeholder="#FFFFFF">
+      <div class="t-label" style="margin-top:4px">Background</div>
+      <div class="t-swatch-row"><div class="t-swatch" id="cc-bg-swatch" style="background:#1A1A1E" onclick="setContrastActive('bg')"></div></div>
+      <input class="t-input" id="cc-bg" value="#1A1A1E" maxlength="7" oninput="updateContrast()" placeholder="#1A1A1E">
+    </div>
+    <div class="t-card" style="text-align:center">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Contrast Ratio</div>
+      <div style="font-family:'Space Mono',monospace;font-size:28px;font-weight:700;color:var(--accent);padding:8px 0 4px" id="cc-ratio">12.63:1</div>
+      <div style="font-size:12px;margin-bottom:10px;color:#4ade80" id="cc-grade">AAA Pass - Excellent</div>
+      <div style="height:56px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;transition:all .2s" id="cc-preview">Sample Text Preview</div>
+    </div>
+    <div class="t-card">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+        <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">AA Normal</div><div id="cc-aa" style="font-size:13px;font-weight:700;color:#4ade80">Pass</div></div>
+        <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">AA Large</div><div id="cc-aa-large" style="font-size:13px;font-weight:700;color:#4ade80">Pass</div></div>
+        <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px">AAA</div><div id="cc-aaa" style="font-size:13px;font-weight:700;color:#4ade80">Pass</div></div>
+      </div>
+    </div>
+    <button class="t-btn" onclick="useSampledInContrast()">Use Last Sampled Color</button>
+  </div>
+</div>
+
+<!-- TOOL: COLOR NAME -->
+<div class="screen tool-screen" id="t-colorname">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div class="tool-header"><div class="tool-back" onclick="switchTab('tools')"><svg width="10" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 10 16"><path d="M8 1L2 8l6 7"/></svg><span style="font-size:14px">Tools</span></div><span class="tool-screen-title">Color Name</span><span></span></div>
+  <div class="tool-body">
+    <div class="t-card">
+      <div class="t-label">Enter HEX Code</div>
+      <input class="t-input" id="cn-input" value="#88B7C5" maxlength="7" oninput="updateColorName()" placeholder="#RRGGBB">
+      <div id="cn-swatch" style="height:80px;border-radius:10px;background:#88B7C5;margin-bottom:14px;transition:background .2s"></div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;letter-spacing:.07em;text-transform:uppercase">Closest Name</div>
+        <div id="cn-name" style="font-size:28px;font-weight:700;margin-bottom:4px">Ocean Mist</div>
+        <div id="cn-dist" style="font-size:12px;color:var(--text2)">Match confidence: 94%</div>
+      </div>
+    </div>
+    <div class="t-card">
+      <div class="t-label">Similar Named Colors</div>
+      <div id="cn-similar" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <button class="t-btn" onclick="useSampledInColorName()">Use Last Sampled Color</button>
+  </div>
+</div>
+
+<!-- TOOL: PALETTE FROM PHOTO (PRO) -->
+<div class="screen tool-screen" id="t-pfp">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div class="tool-header"><div class="tool-back" onclick="switchTab('tools')"><svg width="10" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 10 16"><path d="M8 1L2 8l6 7"/></svg><span style="font-size:14px">Tools</span></div><span class="tool-screen-title">Palette from Photo</span><span style="font-size:10px;font-weight:700;color:var(--pro);background:rgba(167,139,250,.15);padding:3px 8px;border-radius:10px">PRO</span></div>
+  <div class="tool-body">
+    <div class="photo-drop" onclick="document.getElementById('pfpInput').click()" id="pfpDrop">
+      <div class="photo-drop-icon">&#128247;</div>
+      <div class="photo-drop-text">Tap to choose a photo<br><span style="font-size:11px;color:var(--text3)">We will extract the dominant colors</span></div>
+    </div>
+    <input type="file" id="pfpInput" accept="image/*" style="display:none" onchange="extractPalette(event)">
+    <canvas id="pfpCanvas" style="display:none"></canvas>
+    <div id="pfpResult" style="display:none">
+      <div class="t-label">Extracted Palette</div>
+      <div class="palette-from-photo-grid" id="pfpGrid"></div>
+      <button class="t-btn" style="margin-top:14px" onclick="savePfpPalette()">Save as Palette</button>
+      <button class="t-btn t-btn-ghost" style="margin-top:8px" onclick="document.getElementById('pfpInput').click()">Try Another Photo</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOOL: ACCESSIBILITY -->
+<div class="screen tool-screen" id="t-a11y">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div class="tool-header"><div class="tool-back" onclick="switchTab('tools')"><svg width="10" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 10 16"><path d="M8 1L2 8l6 7"/></svg><span style="font-size:14px">Tools</span></div><span class="tool-screen-title">Accessibility</span><span></span></div>
+  <div class="tool-body">
+    <div id="a11y-preview-swatch" style="height:80px;border-radius:12px;margin-bottom:14px;transition:filter .3s;background:#88B7C5"></div>
+    <div class="t-label">Color Vision Mode</div>
+    <div id="a11yFilters"></div>
+    <button class="t-btn" style="margin-top:8px" onclick="useSampledInA11y()">Use Last Sampled Color</button>
+  </div>
+</div>
+
+<!-- TOOL: HARMONIES (PRO) -->
+<div class="screen tool-screen" id="t-harmonies">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div class="tool-header"><div class="tool-back" onclick="switchTab('tools')"><svg width="10" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 10 16"><path d="M8 1L2 8l6 7"/></svg><span style="font-size:14px">Tools</span></div><span class="tool-screen-title">Harmonies</span><span style="font-size:10px;font-weight:700;color:var(--pro);background:rgba(167,139,250,.15);padding:3px 8px;border-radius:10px">PRO</span></div>
+  <div class="tool-body">
+    <div class="t-card">
+      <div class="t-label">Base Color</div>
+      <input class="t-input" id="harm-input" value="#88B7C5" maxlength="7" oninput="updateHarmonies()" placeholder="#RRGGBB">
+    </div>
+    <div id="harmoniesOutput"></div>
+    <button class="t-btn" onclick="useSampledInHarmonies()">Use Last Sampled Color</button>
+  </div>
+</div>
+
+<!-- TOOL: EXPORT SUITE (SPECTRUM) -->
+<div class="screen tool-screen" id="t-export">
+  <div class="status"><span class="status-time" style="color:var(--text)">9:41</span></div>
+  <div class="tool-header"><div class="tool-back" onclick="switchTab('tools')"><svg width="10" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 10 16"><path d="M8 1L2 8l6 7"/></svg><span style="font-size:14px">Tools</span></div><span class="tool-screen-title">Export Suite</span><span style="font-size:10px;font-weight:700;color:var(--spectrum);background:rgba(255,184,48,.12);padding:3px 8px;border-radius:10px">SPECTRUM</span></div>
+  <div class="tool-body">
+    <div class="t-card" style="margin-bottom:14px">
+      <div class="t-label">Current Color</div>
+      <div id="exp-swatch" style="height:56px;border-radius:10px;background:#88B7C5;margin-bottom:10px"></div>
+      <div id="exp-hex" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;text-align:center">#88B7C5</div>
+    </div>
+    <div class="t-label">Export Format</div>
+    <div class="export-option" onclick="exportFormat('css')"><div><div class="export-name">CSS Variable</div><div class="export-ext">--color-primary: #88B7C5;</div></div><span style="color:var(--teal);font-size:18px">&#8599;</span></div>
+    <div class="export-option" onclick="exportFormat('scss')"><div><div class="export-name">SCSS Variable</div><div class="export-ext">$color-primary: #88B7C5;</div></div><span style="color:var(--teal);font-size:18px">&#8599;</span></div>
+    <div class="export-option" onclick="exportFormat('figma')"><div><div class="export-name">Figma Token JSON</div><div class="export-ext">{ "value": "#88B7C5" }</div></div><span style="color:var(--teal);font-size:18px">&#8599;</span></div>
+    <div class="export-option" onclick="exportFormat('tailwind')"><div><div class="export-name">Tailwind Config</div><div class="export-ext">primary: '#88B7C5'</div></div><span style="color:var(--teal);font-size:18px">&#8599;</span></div>
+    <div class="export-option" onclick="exportFormat('swift')"><div><div class="export-name">Swift / iOS</div><div class="export-ext">Color(hex: "#88B7C5")</div></div><span style="color:var(--teal);font-size:18px">&#8599;</span></div>
+    <div class="export-option" onclick="exportFormat('ase')"><div><div class="export-name">Adobe ASE</div><div class="export-ext">.ase swatch file</div></div><span style="color:var(--teal);font-size:18px">&#8599;</span></div>
+  </div>
+</div>
+
+<!-- PAYWALL -->
+<div class="paywall" id="paywall">
+  <button class="paywall-close" onclick="closePaywall()">&#10005;</button>
+  <div class="paywall-scroll">
+    <div class="paywall-hero">
+      <div class="paywall-badge pro" id="pw-badge">PRO</div>
+      <div class="paywall-title" id="pw-title">Unlock Pro</div>
+      <div class="paywall-sub" id="pw-sub">Advanced tools for creators who live in color.</div>
+    </div>
+    <div class="paywall-features" id="pw-features"></div>
+    <div class="paywall-plans">
+      <div class="plan-card selected" id="plan-monthly" onclick="selectPlan('monthly')">
+        <div class="plan-name" id="pm-name">Pro</div>
+        <div class="plan-price" id="pm-price">$3.99</div>
+        <div class="plan-period">per month</div>
+      </div>
+      <div class="plan-card" id="plan-yearly" onclick="selectPlan('yearly')" style="overflow:visible">
+        <div class="plan-popular">BEST VALUE</div>
+        <div class="plan-name" id="py-name">Spectrum</div>
+        <div class="plan-price" id="py-price">$49.00</div>
+        <div class="plan-period">per year</div>
+        <div class="plan-save" id="py-save">Save 18%</div>
+      </div>
+    </div>
+    <button class="paywall-cta" id="pw-cta" onclick="mockPurchase()">Start Free Trial</button>
+    <div class="paywall-restore" onclick="restorePurchase()">Restore Purchases</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handlePhoto(event)">
+</div>
+
+<script>
+let currentHex='#88B7C5',recentColors=['#88B7C5','#F4A261','#E9C46A','#E8C4A2','#8ECAE6','#9B7FA6','#5A8A72','#C25B78'],streaming=false,flashOn=false,flashTrack=null,isSaved=false,userTier='free',hexEditTarget=null,paywallTarget=null,contrastActive='fg';
+const palettesData=[{name:'Coastal Calm',colors:['#B2D8D8','#89C2C8','#3A9EAD','#186F7A','#0D4F57','#0A3840']},{name:'Sunset Drive',colors:['#FFBE0B','#FB5607','#FF006E','#C9184A','#85182A','#6A040F']},{name:'Retro Vibes',colors:['#EDE0D4','#F4A261','#2A9D8F','#007F5F','#004F3A','#00272B']},{name:'Muted Neutrals',colors:['#DDD5C8','#C4B4A4','#A89080','#8A7060','#6B5040','#4A3020']},{name:'Lavender Dream',colors:['#C77DFF','#9D4EDD','#7B2FBE','#5A189A','#3C096C','#240046']}];
+function hexToRgb(h){return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};}
+function toHex(r,g,b){return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('').toUpperCase();}
+function rgbToHsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h,s,l=(mx+mn)/2;if(mx===mn){h=s=0}else{const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);switch(mx){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;case b:h=((r-g)/d+4)/6;break}}return{h:Math.round(h*360),s:Math.round(s*100),l:Math.round(l*100)};}
+function rgbToCmyk(r,g,b){r/=255;g/=255;b/=255;const k=1-Math.max(r,g,b);if(k===1)return{c:0,m:0,y:0,k:100};return{c:Math.round((1-r-k)/(1-k)*100),m:Math.round((1-g-k)/(1-k)*100),y:Math.round((1-b-k)/(1-k)*100),k:Math.round(k*100)};}
+function hslToHex(h,s,l){s/=100;l/=100;const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,'0');};return('#'+f(0)+f(8)+f(4)).toUpperCase();}
+function relLum(r,g,b){return[r,g,b].map(v=>{v/=255;return v<=.03928?v/12.92:((v+.055)/1.055)**2.4}).reduce((s,v,i)=>[.2126,.7152,.0722][i]*v+s,0);}
+function contrastRatio(h1,h2){const{r:r1,g:g1,b:b1}=hexToRgb(h1),{r:r2,g:g2,b:b2}=hexToRgb(h2);const l1=relLum(r1,g1,b1),l2=relLum(r2,g2,b2);return(Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05);}
+function colorName(r,g,b){const N=[['Red',255,0,0],['Crimson',220,20,60],['Coral',255,127,80],['Orange',255,165,0],['Gold',255,215,0],['Yellow',255,255,0],['Lime',0,255,0],['Emerald',80,200,120],['Green',0,128,0],['Forest Green',34,139,34],['Teal',0,128,128],['Cyan',0,255,255],['Sky Blue',135,206,235],['Ocean Mist',136,183,197],['Powder Blue',176,224,230],['Steel Blue',70,130,180],['Cornflower',100,149,237],['Blue',0,0,255],['Royal Blue',65,105,225],['Navy',0,0,128],['Indigo',75,0,130],['Violet',238,130,238],['Purple',128,0,128],['Magenta',255,0,255],['Hot Pink',255,105,180],['Rose',255,102,153],['Pink',255,192,203],['Salmon',250,128,114],['Peach',255,218,185],['Tan',210,180,140],['Brown',165,42,42],['Beige',245,245,220],['White',255,255,255],['Silver',192,192,192],['Gray',128,128,128],['Charcoal',54,69,79],['Black',0,0,0],['Olive',128,128,0],['Sage',90,138,114],['Mint',152,251,152],['Lavender',230,230,250]];let best='Unknown',bestD=Infinity;for(const[n,...c]of N){const d=(r-c[0])**2+(g-c[1])**2+(b-c[2])**2;if(d<bestD){bestD=d;best=n;}}return{name:best,dist:bestD};}
+function genMatches(r,g,b){return Array.from({length:5},(_,i)=>{const o=(i-2)*18;return toHex(r+o,g+o*.8,b+o*.6);});}
+function renderPalettes(){document.getElementById('palList').innerHTML=palettesData.map(p=>`<div class="pal-item"><div class="pal-item-header"><div><div class="pal-name">${p.name}</div><div class="pal-count">${p.colors.length} colors</div></div><span style="font-size:18px;color:var(--text3);cursor:pointer">&#8943;</span></div><div class="pal-chips">${p.colors.map(c=>`<div class="pal-chip" style="background:${c}" onclick="openFromPalette('${c}')"></div>`).join('')}</div></div>`).join('');}
+function renderRecents(){document.getElementById('recentChips').innerHTML=recentColors.slice(0,20).map(c=>`<div class="recent-chip" style="background:${c}" onclick="openHexEdit('${c}')" title="${c}"></div>`).join('');const cg=document.getElementById('colorGrid');if(cg)cg.innerHTML=recentColors.map(c=>`<div onclick="openFromPalette('${c}')" style="cursor:pointer"><div style="height:64px;border-radius:10px;background:${c};margin-bottom:4px"></div><div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text2);text-align:center">${c}</div></div>`).join('');}
+function clearRecents(){recentColors=[];renderRecents();showToast('Cleared!');}
+function openFromPalette(hex){currentHex=hex;updateDetail(hex);showDetail();}
+function updateDetail(hex){const{r,g,b}=hexToRgb(hex);const hsl=rgbToHsl(r,g,b);const cmyk=rgbToCmyk(r,g,b);const{name}=colorName(r,g,b);document.getElementById('bigSwatch').style.background=hex;document.getElementById('hexVal').textContent=hex;document.getElementById('hexVal2').textContent=hex;document.getElementById('rgbVal').textContent=`${r}, ${g}, ${b}`;document.getElementById('hslVal').textContent=`${hsl.h}, ${hsl.s}%, ${hsl.l}%`;document.getElementById('cmykVal').textContent=`${cmyk.c}%, ${cmyk.m}%, ${cmyk.y}%, ${cmyk.k}%`;document.getElementById('colorNameVal').textContent=name;document.getElementById('hueSlider').value=hsl.h;document.getElementById('brightSlider').value=hsl.l;document.getElementById('brightSlider').style.background=`linear-gradient(to right,#111,${hex})`;document.getElementById('matchesRow').innerHTML=genMatches(r,g,b).map(m=>`<div class="match-chip" onclick="openFromPalette('${m}')"><div class="match-swatch" style="background:${m}"></div><div class="match-hex">${m}</div></div>`).join('');const es=document.getElementById('exp-swatch');if(es){es.style.background=hex;document.getElementById('exp-hex').textContent=hex;}}
+function onHueChange(h){const{r,g,b}=hexToRgb(currentHex);const hsl=rgbToHsl(r,g,b);currentHex=hslToHex(h,hsl.s,hsl.l);updateDetail(currentHex);}
+function onBrightChange(l){const{r,g,b}=hexToRgb(currentHex);const hsl=rgbToHsl(r,g,b);currentHex=hslToHex(hsl.h,hsl.s,l);updateDetail(currentHex);}
+let gridVisible=false;
+function toggleGrid(){
+  gridVisible=!gridVisible;
+  document.getElementById('gridOverlay').style.opacity=gridVisible?'1':'0';
+  document.getElementById('gridBtn').style.background=gridVisible?'rgba(255,184,48,.4)':'rgba(255,255,255,.12)';
+  showToast(gridVisible?'Grid ON':'Grid OFF');
+}
+
+function applyZoom(val){
+  const z=parseFloat(val);
+  document.getElementById('zoomCur').textContent=Math.round(z)+'x';
+  const vid=document.getElementById('video');
+  const bg=document.getElementById('roomBg');
+  const pc=document.getElementById('photoCanvas');
+  [vid,bg,pc].forEach(el=>{if(el){el.style.transform='scale('+z+')';el.style.transformOrigin='center center';} });
+  const tip=document.getElementById('qualityTip');
+  if(tip){if(z>2){tip.classList.remove('show');clearTimeout(window.qualityTipTimer);}else if(z<=1.5&&tip.classList.contains('show')){}}
+  if(flashTrack&&flashTrack.getCapabilities){
+    const caps=flashTrack.getCapabilities();
+    if(caps.zoom){const mn=caps.zoom.min||1,mx=caps.zoom.max||z;flashTrack.applyConstraints({advanced:[{zoom:Math.min(mx,Math.max(mn,z))}]}).catch(()=>{});}
+  }
+}
+
+function showActivateBar(tier){
+  let bar=document.getElementById('activateBar');
+  if(bar)bar.remove();
+  bar=document.createElement('div');
+  bar.id='activateBar';
+  bar.style.cssText='position:absolute;bottom:83px;left:0;right:0;z-index:200;background:linear-gradient(135deg,#7C3AED,#A78BFA);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;animation:slideUp .3s ease';
+  bar.innerHTML='<div><div style="font-size:12px;font-weight:700;color:#fff">Payment complete?</div><div style="font-size:11px;color:rgba(255,255,255,.8)">Tap to activate '+(tier==='spectrum'?'Spectrum':'Pro')+'</div></div><button onclick="activateTier(''+tier+'')" style="background:#fff;color:#7C3AED;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Activate</button><button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer">x</button>';
+  document.getElementById('shell').appendChild(bar);
+}
+
+function activateTier(tier){
+  userTier=tier;
+  sessionStorage.setItem('hw_tier',tier);
+  document.getElementById('activateBar')?.remove();
+  document.querySelectorAll('.tool-card.locked').forEach(card=>{
+    if(tier==='spectrum')card.classList.remove('locked');
+    else if(card.querySelector('.lock-pro'))card.classList.remove('locked');
+  });
+  showToast((tier==='spectrum'?'Spectrum':'Pro')+' unlocked!');
+  const pending=sessionStorage.getItem('hw_pending_tool');
+  if(pending){sessionStorage.removeItem('hw_pending_tool');setTimeout(()=>openTool(pending),400);}
+}
+
+function restoreSession(){
+  const saved=sessionStorage.getItem('hw_tier');
+  if(saved){userTier=saved;activateTier(saved);}
+}
+
+function restorePurchase(){
+  const saved=sessionStorage.getItem('hw_tier');
+  if(saved){activateTier(saved);closePaywall();showToast('Purchase restored!');}
+  else showToast('No active purchase found');
+}
+
+async function startCamera(){try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const vid=document.getElementById('video');vid.srcObject=stream;vid.style.display='block';document.getElementById('roomBg').style.display='none';flashTrack=stream.getVideoTracks()[0];streaming=true;}catch(e){}}
+async function toggleFlash(){flashOn=!flashOn;document.getElementById('flashBtn').classList.toggle('on',flashOn);if(flashTrack&&flashTrack.getCapabilities&&flashTrack.getCapabilities().torch){try{await flashTrack.applyConstraints({advanced:[{torch:flashOn}]});}catch(e){}}showToast(flashOn?'Flash ON':'Flash OFF');}
+function fireFlash(){const fo=document.getElementById('flashOverlay');fo.style.opacity='.9';setTimeout(()=>fo.style.opacity='0',120);}
+function samplePixel(x,y){const vid=document.getElementById('video');const cap=document.getElementById('cap');if(streaming&&vid.videoWidth>0){cap.width=vid.videoWidth;cap.height=vid.videoHeight;const ctx=cap.getContext('2d',{willReadFrequently:true});ctx.drawImage(vid,0,0);const shell=document.getElementById('shell').getBoundingClientRect();const nx=(x-shell.left)/shell.width,ny=(y-shell.top)/(shell.height*.78);const px=Math.round(nx*vid.videoWidth),py=Math.round(ny*vid.videoHeight);const d=ctx.getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;let rS=0,gS=0,bS=0,cnt=0;for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}return toHex(rS/cnt,gS/cnt,bS/cnt);}const zone=document.getElementById('tapZone').getBoundingClientRect();const nx=(x-zone.left)/zone.width,ny=(y-zone.top)/zone.height;return toHex(Math.round(74-nx*40+ny*10),Math.round(143-nx*50-ny*30),Math.round(168-nx*40-ny*60));}
+function checkQualityTip(){
+  const zoom = parseFloat(document.getElementById('zoomSlider').value);
+  const tip = document.getElementById('qualityTip');
+  if(zoom <= 1.5){
+    tip.classList.add('show');
+    clearTimeout(window.qualityTipTimer);
+    window.qualityTipTimer = setTimeout(()=>tip.classList.remove('show'), 3000);
+  } else {
+    tip.classList.remove('show');
+  }
+}
+
+document.getElementById('tapZone').addEventListener('click',e=>{if(flashOn)fireFlash();const hex=samplePixel(e.clientX,e.clientY);currentHex=hex;const zone=document.getElementById('tapZone').getBoundingClientRect();const ch=document.getElementById('crosshair');ch.style.left=(e.clientX-zone.left)+'px';ch.style.top=(e.clientY-zone.top)+'px';recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();document.getElementById('tooltip').style.opacity='0';const circle=ch.querySelector('.ch-circle');circle.style.borderColor=hex;circle.style.boxShadow=`0 0 0 3px ${hex}55`;setTimeout(()=>{circle.style.borderColor='rgba(255,255,255,.9)';circle.style.boxShadow='0 0 0 1px rgba(0,0,0,.3)';},500);showToast(hex);});
+function handlePhoto(e){const file=e.target.files[0];if(!file)return;const img=new Image();img.onload=()=>{document.getElementById('roomBg').style.display='none';document.getElementById('video').style.display='none';const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;cv.getContext('2d').drawImage(img,0,0);const viewDiv=document.querySelector('.cam-view');let pc=document.getElementById('photoCanvas');if(!pc){pc=document.createElement('canvas');pc.id='photoCanvas';pc.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover';viewDiv.prepend(pc);}pc.width=img.width;pc.height=img.height;pc.getContext('2d').drawImage(img,0,0);document.getElementById('tapZone').onclick=ev=>{const shell=document.getElementById('shell').getBoundingClientRect();const nx=(ev.clientX-shell.left)/shell.width,ny=(ev.clientY-shell.top)/(shell.height*.78);const px=Math.round(nx*img.width),py=Math.round(ny*img.height);const d=cv.getContext('2d').getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;let rS=0,gS=0,bS=0,cnt=0;for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}const hex=toHex(rS/cnt,gS/cnt,bS/cnt);const zone=document.getElementById('tapZone').getBoundingClientRect();document.getElementById('crosshair').style.left=(ev.clientX-zone.left)+'px';document.getElementById('crosshair').style.top=(ev.clientY-zone.top)+'px';currentHex=hex;recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();showToast(hex);};URL.revokeObjectURL(img.src);};img.src=URL.createObjectURL(file);}
+function openHexEdit(hex){hexEditTarget=hex;document.getElementById('hexEditSwatch').style.background=hex;document.getElementById('hexEditInput').value=hex;document.getElementById('hexEditOverlay').classList.add('show');setTimeout(()=>document.getElementById('hexEditInput').focus(),50);document.querySelectorAll('.recent-chip').forEach(ch=>{const bg=ch.style.backgroundColor;const{r,g,b}=hexToRgb(hex);ch.classList.toggle('selected',bg===`rgb(${r}, ${g}, ${b})`);});}
+function closeHexEdit(){document.getElementById('hexEditOverlay').classList.remove('show');document.querySelectorAll('.recent-chip').forEach(ch=>ch.classList.remove('selected'));hexEditTarget=null;}
+function saveHexEdit(){let val=document.getElementById('hexEditInput').value.trim();if(!val.startsWith('#'))val='#'+val;if(!/^#[0-9A-Fa-f]{6}$/.test(val)){showToast('Invalid HEX - use #RRGGBB');return;}val=val.toUpperCase();if(hexEditTarget){const idx=recentColors.indexOf(hexEditTarget);if(idx>-1)recentColors[idx]=val;else recentColors.unshift(val);}currentHex=val;updateDetail(val);renderRecents();closeHexEdit();showToast('Saved '+val);}
+document.getElementById('hexEditInput').addEventListener('input',function(){let v=this.value.trim();if(!v.startsWith('#'))v='#'+v;if(/^#[0-9A-Fa-f]{6}$/.test(v))document.getElementById('hexEditSwatch').style.background=v;});
+document.getElementById('hexEditInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveHexEdit();if(e.key==='Escape')closeHexEdit();});
+function switchTab(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function showDetail(){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('detail').classList.add('active');}
+function showCam(){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('cam').classList.add('active');}
+function openTool(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('t-'+id).classList.add('active');initTool(id);}
+function checkTier(required,toolId){if(required==='pro'&&(userTier==='pro'||userTier==='spectrum')){openTool(toolId);return;}if(required==='spectrum'&&userTier==='spectrum'){openTool(toolId);return;}openPaywall(required,toolId);}
+function checkTierFromDetail(required){if(required==='pro'&&(userTier==='pro'||userTier==='spectrum')){if(required==='pro')exportFormat('figma');return;}if(required==='spectrum'&&userTier==='spectrum'){openTool('export');return;}openPaywall(required,required==='pro'?null:'export');}
+function initTool(id){if(id==='contrast')updateContrast();else if(id==='colorname'){document.getElementById('cn-input').value=currentHex;updateColorName();}else if(id==='a11y'){renderA11y();useSampledInA11y();}else if(id==='harmonies'){document.getElementById('harm-input').value=currentHex;updateHarmonies();}else if(id==='export'){document.getElementById('exp-swatch').style.background=currentHex;document.getElementById('exp-hex').textContent=currentHex;}}
+function setContrastActive(w){contrastActive=w;document.getElementById('cc-fg-swatch').classList.toggle('active',w==='fg');document.getElementById('cc-bg-swatch').classList.toggle('active',w==='bg');document.getElementById(w==='fg'?'cc-fg':'cc-bg').value=currentHex;document.getElementById('cc-'+w+'-swatch').style.background=currentHex;updateContrast();}
+function updateContrast(){let fg=document.getElementById('cc-fg').value.trim(),bg=document.getElementById('cc-bg').value.trim();if(!fg.startsWith('#'))fg='#'+fg;if(!bg.startsWith('#'))bg='#'+bg;if(!/^#[0-9A-Fa-f]{6}$/.test(fg)||!/^#[0-9A-Fa-f]{6}$/.test(bg))return;document.getElementById('cc-fg-swatch').style.background=fg;document.getElementById('cc-bg-swatch').style.background=bg;const r=contrastRatio(fg,bg);document.getElementById('cc-ratio').textContent=r.toFixed(2)+':1';const aa=r>=4.5,aaLg=r>=3,aaa=r>=7;const grade=aaa?'AAA Pass - Excellent':aa?'AA Pass - Good':aaLg?'AA Large - Marginal':'Fail - Poor Contrast';const gc=aaa||aa?'#4ade80':aaLg?'#facc15':'#f87171';document.getElementById('cc-grade').textContent=grade;document.getElementById('cc-grade').style.color=gc;['aa','aa-large','aaa'].forEach((k,i)=>{const pass=[aa,aaLg,aaa][i];const el=document.getElementById('cc-'+k);el.textContent=pass?'Pass':'Fail';el.style.color=pass?'#4ade80':'#f87171';});const prev=document.getElementById('cc-preview');prev.style.background=bg;prev.style.color=fg;}
+function useSampledInContrast(){document.getElementById(contrastActive==='fg'?'cc-fg':'cc-bg').value=currentHex;updateContrast();}
+function updateColorName(){let val=document.getElementById('cn-input').value.trim();if(!val.startsWith('#'))val='#'+val;if(!/^#[0-9A-Fa-f]{6}$/.test(val))return;document.getElementById('cn-swatch').style.background=val;const{r,g,b}=hexToRgb(val);const{name,dist}=colorName(r,g,b);document.getElementById('cn-name').textContent=name;document.getElementById('cn-dist').textContent='Match confidence: '+Math.max(60,100-Math.round(dist/300))+'%';const similar=[['Sky Blue','#87CEEB'],['Powder Blue','#B0E0E6'],['Steel Blue','#4682B4'],['Teal','#008080'],['Slate','#708090']];document.getElementById('cn-similar').innerHTML=similar.map(([n,c])=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:8px"><div style="width:36px;height:36px;border-radius:7px;background:${c};flex-shrink:0"></div><div><div style="font-size:13px;font-weight:600">${n}</div><div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text2)">${c}</div></div></div>`).join('');}
+function useSampledInColorName(){document.getElementById('cn-input').value=currentHex;updateColorName();}
+function extractPalette(e){const file=e.target.files[0];if(!file)return;const img=new Image();img.onload=()=>{const cv=document.getElementById('pfpCanvas');cv.width=img.width;cv.height=img.height;cv.getContext('2d').drawImage(img,0,0);const ctx=cv.getContext('2d',{willReadFrequently:true});const colors=new Set();const step=Math.floor(img.width/8);for(let x=step;x<img.width;x+=step)for(let y=step;y<img.height;y+=step){const d=ctx.getImageData(x,y,1,1).data;colors.add(toHex(d[0],d[1],d[2]));}const pal=[...colors].slice(0,10);document.getElementById('pfpDrop').style.display='none';document.getElementById('pfpResult').style.display='block';document.getElementById('pfpGrid').innerHTML=pal.map(c=>`<div class="pfp-chip" style="background:${c}" title="${c}" onclick="openFromPalette('${c}')"></div>`).join('');URL.revokeObjectURL(img.src);};img.src=URL.createObjectURL(file);}
+function savePfpPalette(){showToast('Palette saved!');}
+const a11yModes=[{id:'normal',name:'Normal Vision',desc:'No filter applied',filter:'none'},{id:'deuteranopia',name:'Deuteranopia',desc:'Red-green (most common)',filter:'saturate(0.8) hue-rotate(-30deg)'},{id:'protanopia',name:'Protanopia',desc:'Red-green, low red',filter:'saturate(0.6) hue-rotate(20deg)'},{id:'tritanopia',name:'Tritanopia',desc:'Blue-yellow',filter:'hue-rotate(180deg) saturate(0.7)'},{id:'achromatopsia',name:'Achromatopsia',desc:'Complete (grayscale)',filter:'grayscale(1)'}];
+let activeA11y='normal';
+function renderA11y(){document.getElementById('a11yFilters').innerHTML=a11yModes.map(m=>`<div class="a11y-filter ${m.id===activeA11y?'on':''}" onclick="setA11y('${m.id}')"><div><div class="a11y-name">${m.name}</div><div class="a11y-desc">${m.desc}</div></div>${m.id===activeA11y?'<span style="color:var(--teal)">&#9679;</span>':'<span style="color:var(--border2)">&#9675;</span>'}</div>`).join('');}
+function setA11y(id){activeA11y=id;renderA11y();document.getElementById('a11y-preview-swatch').style.filter=a11yModes.find(x=>x.id===id).filter;}
+function useSampledInA11y(){document.getElementById('a11y-preview-swatch').style.background=currentHex;setA11y(activeA11y);}
+function updateHarmonies(){let val=document.getElementById('harm-input').value.trim();if(!val.startsWith('#'))val='#'+val;if(!/^#[0-9A-Fa-f]{6}$/.test(val))return;const{r,g,b}=hexToRgb(val);const hsl=rgbToHsl(r,g,b);const types=[{name:'Complementary',colors:[val,hslToHex((hsl.h+180)%360,hsl.s,hsl.l)]},{name:'Analogous',colors:[hslToHex((hsl.h-30+360)%360,hsl.s,hsl.l),val,hslToHex((hsl.h+30)%360,hsl.s,hsl.l)]},{name:'Triadic',colors:[val,hslToHex((hsl.h+120)%360,hsl.s,hsl.l),hslToHex((hsl.h+240)%360,hsl.s,hsl.l)]},{name:'Split Complementary',colors:[val,hslToHex((hsl.h+150)%360,hsl.s,hsl.l),hslToHex((hsl.h+210)%360,hsl.s,hsl.l)]},{name:'Tetradic',colors:[val,hslToHex((hsl.h+90)%360,hsl.s,hsl.l),hslToHex((hsl.h+180)%360,hsl.s,hsl.l),hslToHex((hsl.h+270)%360,hsl.s,hsl.l)]}];document.getElementById('harmoniesOutput').innerHTML=types.map(t=>`<div class="t-card" style="margin-bottom:12px"><div style="font-size:11px;font-weight:600;letter-spacing:.07em;color:var(--text3);text-transform:uppercase;margin-bottom:10px">${t.name}</div><div class="harmony-row">${t.colors.map(c=>`<div class="harmony-chip" style="background:${c}" onclick="currentHex='${c}';updateDetail('${c}');document.getElementById('harm-input').value='${c}'"><div class="harmony-hex">${c}</div></div>`).join('')}</div></div>`).join('');}
+function useSampledInHarmonies(){document.getElementById('harm-input').value=currentHex;updateHarmonies();}
+function exportFormat(fmt){const hex=currentHex;const{r,g,b}=hexToRgb(hex);const formats={css:`--color-primary: ${hex};`,scss:`$color-primary: ${hex};`,figma:JSON.stringify({"color":{"primary":{"value":hex,"type":"color"}}},null,2),tailwind:`colors: {\n  'primary': '${hex}'\n}`,swift:`Color(red: ${(r/255).toFixed(3)}, green: ${(g/255).toFixed(3)}, blue: ${(b/255).toFixed(3)})`,ase:`[Adobe ASE binary - would download in native app]`};navigator.clipboard.writeText(formats[fmt]).catch(()=>{});showToast('Copied '+fmt.toUpperCase()+'!');}
+function openPaywall(tier,targetTool){paywallTarget=targetTool||null;const isSp=tier==='spectrum';const badge=document.getElementById('pw-badge');badge.textContent=isSp?'SPECTRUM':'PRO';badge.className='paywall-badge '+(isSp?'spectrum':'pro');document.getElementById('pw-title').textContent=isSp?'Unlock Spectrum':'Unlock Pro';document.getElementById('pw-sub').textContent=isSp?'The full creative universe unlocked.':'Advanced tools for creators who live in color.';const proF=['Unlimited saved palettes','Advanced exports & integrations','AI-powered color matching','Premium creative tools','Faster workflow features'];const spF=['Everything in Pro','Unlimited cloud sync','Exclusive palette generators','Trend forecasting & smart suggestions','Professional designer toolkit','Early access to experimental features','Built for artists, studios & color obsessives'];const features=isSp?spF:proF;const dc=isSp?'spectrum':'pro';document.getElementById('pw-features').innerHTML=features.map(f=>`<div class="paywall-feature"><div class="paywall-feature-dot ${dc}">&#10003;</div><div class="paywall-feature-text">${f}</div></div>`).join('');document.getElementById('pm-name').textContent=isSp?'Spectrum':'Pro';document.getElementById('pm-price').textContent=isSp?'$3.99':'$3.99';document.getElementById('py-name').textContent=isSp?'Spectrum Annual':'Pro Annual';document.getElementById('py-price').textContent=isSp?'$49.00':'$39.99';document.getElementById('py-save').textContent=isSp?'Save 18%':'Save 17%';document.getElementById('plan-monthly').classList.add('selected');document.getElementById('plan-yearly').classList.remove('selected');document.getElementById('paywall').classList.add('show');}
+function closePaywall(){document.getElementById('paywall').classList.remove('show');}
+function selectPlan(p){document.getElementById('plan-monthly').classList.toggle('selected',p==='monthly');document.getElementById('plan-yearly').classList.toggle('selected',p==='yearly');}
+function mockPurchase(){
+  const isSp=document.getElementById('pw-badge').textContent==='SPECTRUM';
+  if(paywallTarget)sessionStorage.setItem('hw_pending_tool',paywallTarget);
+  sessionStorage.setItem('hw_pending_tier',isSp?'spectrum':'pro');
+  const link=isSp?'https://buy.stripe.com/14A3cx2o4dKZ8l00JybQY0V':'https://buy.stripe.com/5kQ4gB4wc8qF0Syak8bQY0U';
+  window.open(link,'_blank');
+  closePaywall();
+  showToast('Opening secure checkout...');
+  setTimeout(()=>showActivateBar(isSp?'spectrum':'pro'),800);
+}
+function copyHex(){navigator.clipboard.writeText(document.getElementById('hexVal').textContent).catch(()=>{});showToast('Copied '+document.getElementById('hexVal').textContent+'!');}
+function copyCSS(){navigator.clipboard.writeText('color: '+document.getElementById('hexVal').textContent+';').catch(()=>{});showToast('CSS copied!');}
+function toggleSave(){isSaved=!isSaved;const b=document.getElementById('heartBtn');b.textContent=isSaved?'\u2665':'\u2661';b.style.color=isSaved?'#FF6B6B':'inherit';showToast(isSaved?'Saved!':'Removed');}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
+updateDetail(currentHex);renderPalettes();renderRecents();updateContrast();updateColorName();updateHarmonies();renderA11y();startCamera();restoreSession();
+</script>
+</body>
+</html>
