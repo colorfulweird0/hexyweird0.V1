@@ -39,6 +39,8 @@ canvas#cap{display:none}
 .grid-overlay{position:absolute;inset:0;pointer-events:none;z-index:8;opacity:0;transition:opacity .3s}
 .grid-overlay line{stroke:rgba(255,255,255,.35);stroke-width:1}
 @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.quality-tip{position:absolute;bottom:215px;left:50%;transform:translateX(-50%);background:rgba(255,184,48,.15);backdrop-filter:blur(12px);border:1px solid rgba(255,184,48,.4);border-radius:20px;padding:7px 16px;font-size:12px;font-weight:500;color:#FFB830;white-space:nowrap;pointer-events:none;z-index:25;display:flex;align-items:center;gap:6px;opacity:0;transition:opacity .4s}
+.quality-tip.show{opacity:1}
 .tooltip{position:absolute;top:115px;left:50%;transform:translateX(-50%);background:rgba(30,30,35,.92);backdrop-filter:blur(12px);border:1px solid var(--border2);border-radius:12px;padding:8px 16px;font-size:13px;color:var(--text);white-space:nowrap;opacity:0;animation:fadeIn .5s .8s forwards;z-index:20}
 @keyframes fadeIn{to{opacity:1}}
 .crosshair{position:absolute;width:120px;height:120px;transform:translate(-50%,-50%);pointer-events:none;transition:left .06s,top .06s}
@@ -203,11 +205,6 @@ canvas#cap{display:none}
 .plan-save{font-size:10px;color:#4ade80;margin-top:3px}
 .paywall-cta{margin:0 0 16px;padding:14px;background:var(--accent);color:#000;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%}
 .paywall-restore{text-align:center;font-size:12px;color:var(--text3);cursor:pointer;padding-bottom:20px}
-/* QUALITY TIP */
-.quality-tip{position:absolute;bottom:210px;left:50%;transform:translateX(-50%) translateY(0);background:rgba(255,184,48,.15);backdrop-filter:blur(12px);border:1px solid rgba(255,184,48,.4);border-radius:20px;padding:7px 16px;font-size:12px;font-weight:500;color:#FFB830;white-space:nowrap;pointer-events:none;z-index:25;display:flex;align-items:center;gap:6px;opacity:0;transition:opacity .4s;letter-spacing:.01em}
-.quality-tip.show{opacity:1}
-.quality-tip-icon{font-size:14px}
-
 /* TOAST */
 .toast{position:absolute;bottom:96px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--accent);color:#000;font-size:13px;font-weight:600;padding:8px 20px;border-radius:20px;opacity:0;transition:all .2s;pointer-events:none;z-index:999;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -269,11 +266,7 @@ canvas#cap{display:none}
     <div class="hex-edit-row"><div class="hex-edit-swatch" id="hexEditSwatch"></div><input class="hex-edit-input" id="hexEditInput" type="text" maxlength="7" spellcheck="false"></div>
     <div class="hex-edit-btns"><button class="hex-edit-btn hex-edit-save" onclick="saveHexEdit()">Save</button><button class="hex-edit-btn hex-edit-cancel" onclick="closeHexEdit()">Cancel</button></div>
   </div>
-  <!-- Quality tip -->
-  <div class="quality-tip" id="qualityTip">
-    <span class="quality-tip-icon">🔍</span>
-    Move in for better color quality
-  </div>
+  <div class="quality-tip" id="qualityTip">&#128269; Move in for better color quality</div>
 
   <div style="position:absolute;bottom:83px;left:0;right:0;height:88px;background:rgba(14,14,16,.93);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:8px;z-index:20">
     <span style="font-size:11px;color:var(--text2);white-space:nowrap;margin-right:2px">Recent</span>
@@ -557,6 +550,7 @@ function updateDetail(hex){const{r,g,b}=hexToRgb(hex);const hsl=rgbToHsl(r,g,b);
 function onHueChange(h){const{r,g,b}=hexToRgb(currentHex);const hsl=rgbToHsl(r,g,b);currentHex=hslToHex(h,hsl.s,hsl.l);updateDetail(currentHex);}
 function onBrightChange(l){const{r,g,b}=hexToRgb(currentHex);const hsl=rgbToHsl(r,g,b);currentHex=hslToHex(hsl.h,hsl.s,l);updateDetail(currentHex);}
 let gridVisible=false;
+
 function toggleGrid(){
   gridVisible=!gridVisible;
   document.getElementById('gridOverlay').style.opacity=gridVisible?'1':'0';
@@ -570,13 +564,25 @@ function applyZoom(val){
   const vid=document.getElementById('video');
   const bg=document.getElementById('roomBg');
   const pc=document.getElementById('photoCanvas');
-  [vid,bg,pc].forEach(el=>{if(el){el.style.transform='scale('+z+')';el.style.transformOrigin='center center';} });
-  const tip=document.getElementById('qualityTip');
-  if(tip){if(z>2){tip.classList.remove('show');clearTimeout(window.qualityTipTimer);}else if(z<=1.5&&tip.classList.contains('show')){}}
+  [vid,bg,pc].forEach(el=>{if(el){el.style.transform='scale('+z+')';el.style.transformOrigin='center center';}  });
   if(flashTrack&&flashTrack.getCapabilities){
     const caps=flashTrack.getCapabilities();
     if(caps.zoom){const mn=caps.zoom.min||1,mx=caps.zoom.max||z;flashTrack.applyConstraints({advanced:[{zoom:Math.min(mx,Math.max(mn,z))}]}).catch(()=>{});}
   }
+  if(z<=1.5) showQualityTip(); else hideQualityTip();
+}
+
+function showQualityTip(){
+  const tip=document.getElementById('qualityTip');
+  if(!tip)return;
+  tip.classList.add('show');
+  clearTimeout(window._qtTimer);
+  window._qtTimer=setTimeout(()=>tip.classList.remove('show'),3000);
+}
+
+function hideQualityTip(){
+  const tip=document.getElementById('qualityTip');
+  if(tip){tip.classList.remove('show');clearTimeout(window._qtTimer);}
 }
 
 function showActivateBar(tier){
@@ -617,18 +623,6 @@ async function startCamera(){try{const stream=await navigator.mediaDevices.getUs
 async function toggleFlash(){flashOn=!flashOn;document.getElementById('flashBtn').classList.toggle('on',flashOn);if(flashTrack&&flashTrack.getCapabilities&&flashTrack.getCapabilities().torch){try{await flashTrack.applyConstraints({advanced:[{torch:flashOn}]});}catch(e){}}showToast(flashOn?'Flash ON':'Flash OFF');}
 function fireFlash(){const fo=document.getElementById('flashOverlay');fo.style.opacity='.9';setTimeout(()=>fo.style.opacity='0',120);}
 function samplePixel(x,y){const vid=document.getElementById('video');const cap=document.getElementById('cap');if(streaming&&vid.videoWidth>0){cap.width=vid.videoWidth;cap.height=vid.videoHeight;const ctx=cap.getContext('2d',{willReadFrequently:true});ctx.drawImage(vid,0,0);const shell=document.getElementById('shell').getBoundingClientRect();const nx=(x-shell.left)/shell.width,ny=(y-shell.top)/(shell.height*.78);const px=Math.round(nx*vid.videoWidth),py=Math.round(ny*vid.videoHeight);const d=ctx.getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;let rS=0,gS=0,bS=0,cnt=0;for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}return toHex(rS/cnt,gS/cnt,bS/cnt);}const zone=document.getElementById('tapZone').getBoundingClientRect();const nx=(x-zone.left)/zone.width,ny=(y-zone.top)/zone.height;return toHex(Math.round(74-nx*40+ny*10),Math.round(143-nx*50-ny*30),Math.round(168-nx*40-ny*60));}
-function checkQualityTip(){
-  const zoom = parseFloat(document.getElementById('zoomSlider').value);
-  const tip = document.getElementById('qualityTip');
-  if(zoom <= 1.5){
-    tip.classList.add('show');
-    clearTimeout(window.qualityTipTimer);
-    window.qualityTipTimer = setTimeout(()=>tip.classList.remove('show'), 3000);
-  } else {
-    tip.classList.remove('show');
-  }
-}
-
 document.getElementById('tapZone').addEventListener('click',e=>{if(flashOn)fireFlash();const hex=samplePixel(e.clientX,e.clientY);currentHex=hex;const zone=document.getElementById('tapZone').getBoundingClientRect();const ch=document.getElementById('crosshair');ch.style.left=(e.clientX-zone.left)+'px';ch.style.top=(e.clientY-zone.top)+'px';recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();document.getElementById('tooltip').style.opacity='0';const circle=ch.querySelector('.ch-circle');circle.style.borderColor=hex;circle.style.boxShadow=`0 0 0 3px ${hex}55`;setTimeout(()=>{circle.style.borderColor='rgba(255,255,255,.9)';circle.style.boxShadow='0 0 0 1px rgba(0,0,0,.3)';},500);showToast(hex);});
 function handlePhoto(e){const file=e.target.files[0];if(!file)return;const img=new Image();img.onload=()=>{document.getElementById('roomBg').style.display='none';document.getElementById('video').style.display='none';const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;cv.getContext('2d').drawImage(img,0,0);const viewDiv=document.querySelector('.cam-view');let pc=document.getElementById('photoCanvas');if(!pc){pc=document.createElement('canvas');pc.id='photoCanvas';pc.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover';viewDiv.prepend(pc);}pc.width=img.width;pc.height=img.height;pc.getContext('2d').drawImage(img,0,0);document.getElementById('tapZone').onclick=ev=>{const shell=document.getElementById('shell').getBoundingClientRect();const nx=(ev.clientX-shell.left)/shell.width,ny=(ev.clientY-shell.top)/(shell.height*.78);const px=Math.round(nx*img.width),py=Math.round(ny*img.height);const d=cv.getContext('2d').getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;let rS=0,gS=0,bS=0,cnt=0;for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}const hex=toHex(rS/cnt,gS/cnt,bS/cnt);const zone=document.getElementById('tapZone').getBoundingClientRect();document.getElementById('crosshair').style.left=(ev.clientX-zone.left)+'px';document.getElementById('crosshair').style.top=(ev.clientY-zone.top)+'px';currentHex=hex;recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();showToast(hex);};URL.revokeObjectURL(img.src);};img.src=URL.createObjectURL(file);}
 function openHexEdit(hex){hexEditTarget=hex;document.getElementById('hexEditSwatch').style.background=hex;document.getElementById('hexEditInput').value=hex;document.getElementById('hexEditOverlay').classList.add('show');setTimeout(()=>document.getElementById('hexEditInput').focus(),50);document.querySelectorAll('.recent-chip').forEach(ch=>{const bg=ch.style.backgroundColor;const{r,g,b}=hexToRgb(hex);ch.classList.toggle('selected',bg===`rgb(${r}, ${g}, ${b})`);});}
@@ -664,7 +658,6 @@ function selectPlan(p){document.getElementById('plan-monthly').classList.toggle(
 function mockPurchase(){
   const isSp=document.getElementById('pw-badge').textContent==='SPECTRUM';
   if(paywallTarget)sessionStorage.setItem('hw_pending_tool',paywallTarget);
-  sessionStorage.setItem('hw_pending_tier',isSp?'spectrum':'pro');
   const link=isSp?'https://buy.stripe.com/14A3cx2o4dKZ8l00JybQY0V':'https://buy.stripe.com/5kQ4gB4wc8qF0Syak8bQY0U';
   window.open(link,'_blank');
   closePaywall();
