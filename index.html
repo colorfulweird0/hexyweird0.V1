@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Hexy Weird0 v1.0 | Save this file and open directly in browser -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -21,7 +22,7 @@ body{font-family:'DM Sans',sans-serif;background:#000;color:var(--text);overflow
 .status-time{font-family:'Space Mono',monospace;font-size:15px;font-weight:700}
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;transition:opacity .22s,transform .22s;opacity:0;pointer-events:none;transform:translateX(16px)}
 .screen.active{opacity:1;pointer-events:all;transform:translateX(0)}
-.tabbar{height:83px;background:rgba(14,14,16,.95);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:flex-start;padding-top:10px;flex-shrink:0;position:relative;z-index:30}
+.tabbar{height:83px;background:rgba(14,14,16,.98);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:flex-start;padding-top:10px;flex-shrink:0;position:relative;z-index:30}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;opacity:.45;transition:opacity .15s}
 .tab.on{opacity:1}
 .tab svg{width:24px;height:24px}
@@ -38,9 +39,6 @@ canvas#cap{display:none}
 .flash-overlay{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .05s;z-index:10}
 .grid-overlay{position:absolute;inset:0;pointer-events:none;z-index:8;opacity:0;transition:opacity .3s}
 .grid-overlay line{stroke:rgba(255,255,255,.35);stroke-width:1}
-@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
-.quality-tip{position:absolute;bottom:215px;left:50%;transform:translateX(-50%);background:rgba(255,184,48,.15);backdrop-filter:blur(12px);border:1px solid rgba(255,184,48,.4);border-radius:20px;padding:7px 16px;font-size:12px;font-weight:500;color:#FFB830;white-space:nowrap;pointer-events:none;z-index:25;display:flex;align-items:center;gap:6px;opacity:0;transition:opacity .4s}
-.quality-tip.show{opacity:1}
 .tooltip{position:absolute;top:115px;left:50%;transform:translateX(-50%);background:rgba(30,30,35,.92);backdrop-filter:blur(12px);border:1px solid var(--border2);border-radius:12px;padding:8px 16px;font-size:13px;color:var(--text);white-space:nowrap;opacity:0;animation:fadeIn .5s .8s forwards;z-index:20}
 @keyframes fadeIn{to{opacity:1}}
 .crosshair{position:absolute;width:120px;height:120px;transform:translate(-50%,-50%);pointer-events:none;transition:left .06s,top .06s}
@@ -249,7 +247,7 @@ canvas#cap{display:none}
       </div>
     </div>
   </div>
-  <div class="tap-zone" id="tapZone">
+    <div class="tap-zone" id="tapZone">
     <div class="crosshair" id="crosshair" style="left:50%;top:45%">
       <div class="ch-circle"></div><div class="ch-dash"></div>
       <div class="ch-h"></div><div class="ch-v"></div><div class="ch-sq"></div>
@@ -266,8 +264,6 @@ canvas#cap{display:none}
     <div class="hex-edit-row"><div class="hex-edit-swatch" id="hexEditSwatch"></div><input class="hex-edit-input" id="hexEditInput" type="text" maxlength="7" spellcheck="false"></div>
     <div class="hex-edit-btns"><button class="hex-edit-btn hex-edit-save" onclick="saveHexEdit()">Save</button><button class="hex-edit-btn hex-edit-cancel" onclick="closeHexEdit()">Cancel</button></div>
   </div>
-  <div class="quality-tip" id="qualityTip">&#128269; Move in for better color quality</div>
-
   <div style="position:absolute;bottom:83px;left:0;right:0;height:88px;background:rgba(14,14,16,.93);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:8px;z-index:20">
     <span style="font-size:11px;color:var(--text2);white-space:nowrap;margin-right:2px">Recent</span>
     <div id="recentChips" style="display:flex;gap:8px;flex:1;overflow-x:auto"></div>
@@ -522,7 +518,7 @@ canvas#cap{display:none}
       </div>
     </div>
     <button class="paywall-cta" id="pw-cta" onclick="mockPurchase()">Start Free Trial</button>
-    <div class="paywall-restore" onclick="restorePurchase()">Restore Purchases</div>
+    <div class="paywall-restore" onclick="showToast('Purchases restored!')">Restore Purchases</div>
   </div>
 </div>
 
@@ -550,7 +546,6 @@ function updateDetail(hex){const{r,g,b}=hexToRgb(hex);const hsl=rgbToHsl(r,g,b);
 function onHueChange(h){const{r,g,b}=hexToRgb(currentHex);const hsl=rgbToHsl(r,g,b);currentHex=hslToHex(h,hsl.s,hsl.l);updateDetail(currentHex);}
 function onBrightChange(l){const{r,g,b}=hexToRgb(currentHex);const hsl=rgbToHsl(r,g,b);currentHex=hslToHex(hsl.h,hsl.s,l);updateDetail(currentHex);}
 let gridVisible=false;
-
 function toggleGrid(){
   gridVisible=!gridVisible;
   document.getElementById('gridOverlay').style.opacity=gridVisible?'1':'0';
@@ -561,69 +556,30 @@ function toggleGrid(){
 function applyZoom(val){
   const z=parseFloat(val);
   document.getElementById('zoomCur').textContent=Math.round(z)+'x';
+  // Apply CSS scale zoom to the video/room-bg so it works with or without camera
+  // Scale the inner content (video or room bg), not the container
   const vid=document.getElementById('video');
   const bg=document.getElementById('roomBg');
   const pc=document.getElementById('photoCanvas');
-  [vid,bg,pc].forEach(el=>{if(el){el.style.transform='scale('+z+')';el.style.transformOrigin='center center';}  });
+  [vid,bg,pc].forEach(el=>{
+    if(el){el.style.transform=`scale(${z})`;el.style.transformOrigin='center center';}
+  });
+  // Real camera zoom via track constraints
   if(flashTrack&&flashTrack.getCapabilities){
     const caps=flashTrack.getCapabilities();
-    if(caps.zoom){const mn=caps.zoom.min||1,mx=caps.zoom.max||z;flashTrack.applyConstraints({advanced:[{zoom:Math.min(mx,Math.max(mn,z))}]}).catch(()=>{});}
+    if(caps.zoom){
+      const min=caps.zoom.min||1,max=caps.zoom.max||z;
+      const clamped=Math.min(max,Math.max(min,z));
+      flashTrack.applyConstraints({advanced:[{zoom:clamped}]}).catch(()=>{});
+    }
   }
-  if(z<=1.5) showQualityTip(); else hideQualityTip();
-}
-
-function showQualityTip(){
-  const tip=document.getElementById('qualityTip');
-  if(!tip)return;
-  tip.classList.add('show');
-  clearTimeout(window._qtTimer);
-  window._qtTimer=setTimeout(()=>tip.classList.remove('show'),3000);
-}
-
-function hideQualityTip(){
-  const tip=document.getElementById('qualityTip');
-  if(tip){tip.classList.remove('show');clearTimeout(window._qtTimer);}
-}
-
-function showActivateBar(tier){
-  let bar=document.getElementById('activateBar');
-  if(bar)bar.remove();
-  bar=document.createElement('div');
-  bar.id='activateBar';
-  bar.style.cssText='position:absolute;bottom:83px;left:0;right:0;z-index:200;background:linear-gradient(135deg,#7C3AED,#A78BFA);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;animation:slideUp .3s ease';
-  bar.innerHTML='<div><div style="font-size:12px;font-weight:700;color:#fff">Payment complete?</div><div style="font-size:11px;color:rgba(255,255,255,.8)">Tap to activate '+(tier==='spectrum'?'Spectrum':'Pro')+'</div></div><button onclick="activateTier(''+tier+'')" style="background:#fff;color:#7C3AED;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Activate</button><button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer">x</button>';
-  document.getElementById('shell').appendChild(bar);
-}
-
-function activateTier(tier){
-  userTier=tier;
-  sessionStorage.setItem('hw_tier',tier);
-  document.getElementById('activateBar')?.remove();
-  document.querySelectorAll('.tool-card.locked').forEach(card=>{
-    if(tier==='spectrum')card.classList.remove('locked');
-    else if(card.querySelector('.lock-pro'))card.classList.remove('locked');
-  });
-  showToast((tier==='spectrum'?'Spectrum':'Pro')+' unlocked!');
-  const pending=sessionStorage.getItem('hw_pending_tool');
-  if(pending){sessionStorage.removeItem('hw_pending_tool');setTimeout(()=>openTool(pending),400);}
-}
-
-function restoreSession(){
-  const saved=sessionStorage.getItem('hw_tier');
-  if(saved){userTier=saved;activateTier(saved);}
-}
-
-function restorePurchase(){
-  const saved=sessionStorage.getItem('hw_tier');
-  if(saved){activateTier(saved);closePaywall();showToast('Purchase restored!');}
-  else showToast('No active purchase found');
 }
 
 async function startCamera(){try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const vid=document.getElementById('video');vid.srcObject=stream;vid.style.display='block';document.getElementById('roomBg').style.display='none';flashTrack=stream.getVideoTracks()[0];streaming=true;}catch(e){}}
 async function toggleFlash(){flashOn=!flashOn;document.getElementById('flashBtn').classList.toggle('on',flashOn);if(flashTrack&&flashTrack.getCapabilities&&flashTrack.getCapabilities().torch){try{await flashTrack.applyConstraints({advanced:[{torch:flashOn}]});}catch(e){}}showToast(flashOn?'Flash ON':'Flash OFF');}
 function fireFlash(){const fo=document.getElementById('flashOverlay');fo.style.opacity='.9';setTimeout(()=>fo.style.opacity='0',120);}
 function samplePixel(x,y){const vid=document.getElementById('video');const cap=document.getElementById('cap');if(streaming&&vid.videoWidth>0){cap.width=vid.videoWidth;cap.height=vid.videoHeight;const ctx=cap.getContext('2d',{willReadFrequently:true});ctx.drawImage(vid,0,0);const shell=document.getElementById('shell').getBoundingClientRect();const nx=(x-shell.left)/shell.width,ny=(y-shell.top)/(shell.height*.78);const px=Math.round(nx*vid.videoWidth),py=Math.round(ny*vid.videoHeight);const d=ctx.getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;let rS=0,gS=0,bS=0,cnt=0;for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}return toHex(rS/cnt,gS/cnt,bS/cnt);}const zone=document.getElementById('tapZone').getBoundingClientRect();const nx=(x-zone.left)/zone.width,ny=(y-zone.top)/zone.height;return toHex(Math.round(74-nx*40+ny*10),Math.round(143-nx*50-ny*30),Math.round(168-nx*40-ny*60));}
-document.getElementById('tapZone').addEventListener('click',e=>{if(flashOn)fireFlash();const hex=samplePixel(e.clientX,e.clientY);currentHex=hex;const zone=document.getElementById('tapZone').getBoundingClientRect();const ch=document.getElementById('crosshair');ch.style.left=(e.clientX-zone.left)+'px';ch.style.top=(e.clientY-zone.top)+'px';recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();document.getElementById('tooltip').style.opacity='0';const circle=ch.querySelector('.ch-circle');circle.style.borderColor=hex;circle.style.boxShadow=`0 0 0 3px ${hex}55`;setTimeout(()=>{circle.style.borderColor='rgba(255,255,255,.9)';circle.style.boxShadow='0 0 0 1px rgba(0,0,0,.3)';},500);showToast(hex);});
+document.getElementById('tapZone').addEventListener('click',e=>{if(flashOn)fireFlash();const hex=samplePixel(e.clientX,e.clientY);currentHex=hex;const zone=document.getElementById('tapZone').getBoundingClientRect();const ch=document.getElementById('crosshair');ch.style.left=(e.clientX-zone.left)+'px';ch.style.top=(e.clientY-zone.top)+'px';recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();/* tooltip removed */const circle=ch.querySelector('.ch-circle');circle.style.borderColor=hex;circle.style.boxShadow=`0 0 0 3px ${hex}55`;setTimeout(()=>{circle.style.borderColor='rgba(255,255,255,.9)';circle.style.boxShadow='0 0 0 1px rgba(0,0,0,.3)';},500);showToast(hex);});
 function handlePhoto(e){const file=e.target.files[0];if(!file)return;const img=new Image();img.onload=()=>{document.getElementById('roomBg').style.display='none';document.getElementById('video').style.display='none';const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;cv.getContext('2d').drawImage(img,0,0);const viewDiv=document.querySelector('.cam-view');let pc=document.getElementById('photoCanvas');if(!pc){pc=document.createElement('canvas');pc.id='photoCanvas';pc.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover';viewDiv.prepend(pc);}pc.width=img.width;pc.height=img.height;pc.getContext('2d').drawImage(img,0,0);document.getElementById('tapZone').onclick=ev=>{const shell=document.getElementById('shell').getBoundingClientRect();const nx=(ev.clientX-shell.left)/shell.width,ny=(ev.clientY-shell.top)/(shell.height*.78);const px=Math.round(nx*img.width),py=Math.round(ny*img.height);const d=cv.getContext('2d').getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;let rS=0,gS=0,bS=0,cnt=0;for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}const hex=toHex(rS/cnt,gS/cnt,bS/cnt);const zone=document.getElementById('tapZone').getBoundingClientRect();document.getElementById('crosshair').style.left=(ev.clientX-zone.left)+'px';document.getElementById('crosshair').style.top=(ev.clientY-zone.top)+'px';currentHex=hex;recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();showToast(hex);};URL.revokeObjectURL(img.src);};img.src=URL.createObjectURL(file);}
 function openHexEdit(hex){hexEditTarget=hex;document.getElementById('hexEditSwatch').style.background=hex;document.getElementById('hexEditInput').value=hex;document.getElementById('hexEditOverlay').classList.add('show');setTimeout(()=>document.getElementById('hexEditInput').focus(),50);document.querySelectorAll('.recent-chip').forEach(ch=>{const bg=ch.style.backgroundColor;const{r,g,b}=hexToRgb(hex);ch.classList.toggle('selected',bg===`rgb(${r}, ${g}, ${b})`);});}
 function closeHexEdit(){document.getElementById('hexEditOverlay').classList.remove('show');document.querySelectorAll('.recent-chip').forEach(ch=>ch.classList.remove('selected'));hexEditTarget=null;}
@@ -655,20 +611,12 @@ function exportFormat(fmt){const hex=currentHex;const{r,g,b}=hexToRgb(hex);const
 function openPaywall(tier,targetTool){paywallTarget=targetTool||null;const isSp=tier==='spectrum';const badge=document.getElementById('pw-badge');badge.textContent=isSp?'SPECTRUM':'PRO';badge.className='paywall-badge '+(isSp?'spectrum':'pro');document.getElementById('pw-title').textContent=isSp?'Unlock Spectrum':'Unlock Pro';document.getElementById('pw-sub').textContent=isSp?'The full creative universe unlocked.':'Advanced tools for creators who live in color.';const proF=['Unlimited saved palettes','Advanced exports & integrations','AI-powered color matching','Premium creative tools','Faster workflow features'];const spF=['Everything in Pro','Unlimited cloud sync','Exclusive palette generators','Trend forecasting & smart suggestions','Professional designer toolkit','Early access to experimental features','Built for artists, studios & color obsessives'];const features=isSp?spF:proF;const dc=isSp?'spectrum':'pro';document.getElementById('pw-features').innerHTML=features.map(f=>`<div class="paywall-feature"><div class="paywall-feature-dot ${dc}">&#10003;</div><div class="paywall-feature-text">${f}</div></div>`).join('');document.getElementById('pm-name').textContent=isSp?'Spectrum':'Pro';document.getElementById('pm-price').textContent=isSp?'$3.99':'$3.99';document.getElementById('py-name').textContent=isSp?'Spectrum Annual':'Pro Annual';document.getElementById('py-price').textContent=isSp?'$49.00':'$39.99';document.getElementById('py-save').textContent=isSp?'Save 18%':'Save 17%';document.getElementById('plan-monthly').classList.add('selected');document.getElementById('plan-yearly').classList.remove('selected');document.getElementById('paywall').classList.add('show');}
 function closePaywall(){document.getElementById('paywall').classList.remove('show');}
 function selectPlan(p){document.getElementById('plan-monthly').classList.toggle('selected',p==='monthly');document.getElementById('plan-yearly').classList.toggle('selected',p==='yearly');}
-function mockPurchase(){
-  const isSp=document.getElementById('pw-badge').textContent==='SPECTRUM';
-  if(paywallTarget)sessionStorage.setItem('hw_pending_tool',paywallTarget);
-  const link=isSp?'https://buy.stripe.com/14A3cx2o4dKZ8l00JybQY0V':'https://buy.stripe.com/5kQ4gB4wc8qF0Syak8bQY0U';
-  window.open(link,'_blank');
-  closePaywall();
-  showToast('Opening secure checkout...');
-  setTimeout(()=>showActivateBar(isSp?'spectrum':'pro'),800);
-}
+function mockPurchase(){const isSp=document.getElementById('pw-badge').textContent==='SPECTRUM';userTier=isSp?'spectrum':'pro';closePaywall();showToast((isSp?'Spectrum':'Pro')+' unlocked!');if(paywallTarget)setTimeout(()=>openTool(paywallTarget),400);}
 function copyHex(){navigator.clipboard.writeText(document.getElementById('hexVal').textContent).catch(()=>{});showToast('Copied '+document.getElementById('hexVal').textContent+'!');}
 function copyCSS(){navigator.clipboard.writeText('color: '+document.getElementById('hexVal').textContent+';').catch(()=>{});showToast('CSS copied!');}
 function toggleSave(){isSaved=!isSaved;const b=document.getElementById('heartBtn');b.textContent=isSaved?'\u2665':'\u2661';b.style.color=isSaved?'#FF6B6B':'inherit';showToast(isSaved?'Saved!':'Removed');}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
-updateDetail(currentHex);renderPalettes();renderRecents();updateContrast();updateColorName();updateHarmonies();renderA11y();startCamera();restoreSession();
+updateDetail(currentHex);renderPalettes();renderRecents();updateContrast();updateColorName();updateHarmonies();renderA11y();startCamera();
 </script>
 </body>
 </html>
