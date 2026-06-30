@@ -608,8 +608,47 @@ async function toggleFlash(){
   }
 }
 function fireFlash(){const fo=document.getElementById('flashOverlay');fo.style.opacity='.9';setTimeout(()=>fo.style.opacity='0',120);}
-function samplePixel(x,y){const vid=document.getElementById('video');const cap=document.getElementById('cap');if(streaming&&vid.videoWidth>0){cap.width=vid.videoWidth;cap.height=vid.videoHeight;const ctx=cap.getContext('2d',{willReadFrequently:true});ctx.drawImage(vid,0,0);const shell=document.getElementById('shell').getBoundingClientRect();const nx=(x-shell.left)/shell.width,ny=(y-shell.top)/(shell.height*.78);const px=Math.round(nx*vid.videoWidth),py=Math.round(ny*vid.videoHeight);const d=ctx.getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;let rS=0,gS=0,bS=0,cnt=0;for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}return toHex(rS/cnt,gS/cnt,bS/cnt);}const zone=document.getElementById('tapZone').getBoundingClientRect();const nx=(x-zone.left)/zone.width,ny=(y-zone.top)/zone.height;return toHex(Math.round(74-nx*40+ny*10),Math.round(143-nx*50-ny*30),Math.round(168-nx*40-ny*60));}
-document.getElementById('tapZone').addEventListener('click',e=>{const hex=samplePixel(e.clientX,e.clientY);currentHex=hex;const zone=document.getElementById('tapZone').getBoundingClientRect();const ch=document.getElementById('crosshair');ch.style.left=(e.clientX-zone.left)+'px';ch.style.top=(e.clientY-zone.top)+'px';recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();/* tooltip removed */const circle=ch.querySelector('.ch-circle');circle.style.borderColor=hex;circle.style.boxShadow=`0 0 0 3px ${hex}55`;setTimeout(()=>{circle.style.borderColor='rgba(255,255,255,.9)';circle.style.boxShadow='0 0 0 1px rgba(0,0,0,.3)';},500);showToast(hex);});
+function samplePixel(x,y){
+  const vid=document.getElementById('video');
+  const cap=document.getElementById('cap');
+  const pc=document.getElementById('photoCanvas');
+
+  // PRIORITY 1: live camera stream (real color sampling)
+  if(streaming && vid.videoWidth > 0){
+    cap.width=vid.videoWidth;
+    cap.height=vid.videoHeight;
+    const ctx=cap.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(vid,0,0);
+    const shell=document.getElementById('shell').getBoundingClientRect();
+    const nx=(x-shell.left)/shell.width, ny=(y-shell.top)/(shell.height*.78);
+    const px=Math.round(nx*vid.videoWidth), py=Math.round(ny*vid.videoHeight);
+    const d=ctx.getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;
+    let rS=0,gS=0,bS=0,cnt=0;
+    for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}
+    return toHex(rS/cnt,gS/cnt,bS/cnt);
+  }
+
+  // PRIORITY 2: uploaded photo canvas (if user picked a photo instead of using live camera)
+  if(pc && pc.width > 0){
+    const ctx=pc.getContext('2d',{willReadFrequently:true});
+    const shell=document.getElementById('shell').getBoundingClientRect();
+    const nx=(x-shell.left)/shell.width, ny=(y-shell.top)/(shell.height*.78);
+    const px=Math.round(nx*pc.width), py=Math.round(ny*pc.height);
+    const d=ctx.getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;
+    let rS=0,gS=0,bS=0,cnt=0;
+    for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}
+    return toHex(rS/cnt,gS/cnt,bS/cnt);
+  }
+
+  // No real image source available — camera not ready. Tell the user honestly
+  // instead of returning fake placeholder colors.
+  showToast('Camera not ready — point at a color and wait a moment');
+  return null;
+}
+document.getElementById('tapZone').addEventListener('click',e=>{
+  const hex=samplePixel(e.clientX,e.clientY);
+  if(!hex) return; // camera not ready, toast already shown
+  currentHex=hex;const zone=document.getElementById('tapZone').getBoundingClientRect();const ch=document.getElementById('crosshair');ch.style.left=(e.clientX-zone.left)+'px';ch.style.top=(e.clientY-zone.top)+'px';recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();/* tooltip removed */const circle=ch.querySelector('.ch-circle');circle.style.borderColor=hex;circle.style.boxShadow=`0 0 0 3px ${hex}55`;setTimeout(()=>{circle.style.borderColor='rgba(255,255,255,.9)';circle.style.boxShadow='0 0 0 1px rgba(0,0,0,.3)';},500);showToast(hex);});
 function handlePhoto(e){const file=e.target.files[0];if(!file)return;const img=new Image();img.onload=()=>{document.getElementById('roomBg').style.display='none';document.getElementById('video').style.display='none';const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;cv.getContext('2d').drawImage(img,0,0);const viewDiv=document.querySelector('.cam-view');let pc=document.getElementById('photoCanvas');if(!pc){pc=document.createElement('canvas');pc.id='photoCanvas';pc.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover';viewDiv.prepend(pc);}pc.width=img.width;pc.height=img.height;pc.getContext('2d').drawImage(img,0,0);document.getElementById('tapZone').onclick=ev=>{const shell=document.getElementById('shell').getBoundingClientRect();const nx=(ev.clientX-shell.left)/shell.width,ny=(ev.clientY-shell.top)/(shell.height*.78);const px=Math.round(nx*img.width),py=Math.round(ny*img.height);const d=cv.getContext('2d').getImageData(Math.max(0,px-5),Math.max(0,py-5),11,11).data;let rS=0,gS=0,bS=0,cnt=0;for(let i=0;i<d.length;i+=4){rS+=d[i];gS+=d[i+1];bS+=d[i+2];cnt++;}const hex=toHex(rS/cnt,gS/cnt,bS/cnt);const zone=document.getElementById('tapZone').getBoundingClientRect();document.getElementById('crosshair').style.left=(ev.clientX-zone.left)+'px';document.getElementById('crosshair').style.top=(ev.clientY-zone.top)+'px';currentHex=hex;recentColors=[hex,...recentColors.filter(c=>c!==hex)].slice(0,20);renderRecents();closeHexEdit();showToast(hex);};URL.revokeObjectURL(img.src);};img.src=URL.createObjectURL(file);}
 function openHexEdit(hex){hexEditTarget=hex;document.getElementById('hexEditSwatch').style.background=hex;document.getElementById('hexEditInput').value=hex;document.getElementById('hexEditOverlay').classList.add('show');setTimeout(()=>document.getElementById('hexEditInput').focus(),50);document.querySelectorAll('.recent-chip').forEach(ch=>{const bg=ch.style.backgroundColor;const{r,g,b}=hexToRgb(hex);ch.classList.toggle('selected',bg===`rgb(${r}, ${g}, ${b})`);});}
 function closeHexEdit(){document.getElementById('hexEditOverlay').classList.remove('show');document.querySelectorAll('.recent-chip').forEach(ch=>ch.classList.remove('selected'));hexEditTarget=null;}
