@@ -628,23 +628,27 @@ function showActivateBar(tier){
   bar=document.createElement('div');
   bar.id='activateBar';
   bar.style.cssText='position:absolute;bottom:83px;left:0;right:0;z-index:200;background:linear-gradient(135deg,#7C3AED,#A78BFA);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px';
-  bar.innerHTML='<div><div style="font-size:12px;font-weight:700;color:#fff">Payment complete?</div><div style="font-size:11px;color:rgba(255,255,255,.8)">Tap Activate to unlock '+(tier==='spectrum'?'Spectrum':'Pro')+'</div></div>'
-    +'<button onclick="activateTier(''+tier+'')" style="background:#fff;color:#7C3AED;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Activate</button>'
-    +'<button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer">x</button>';
+  var label = tier === 'spectrum' ? 'Spectrum' : 'Pro';
+  bar.innerHTML = '<div><div style="font-size:12px;font-weight:700;color:#fff">Payment complete?</div><div style="font-size:11px;color:rgba(255,255,255,.8)">Tap Activate to unlock ' + label + '</div></div>' +
+    '<button id="activateBtn" style="background:#fff;color:#7C3AED;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Activate</button>' +
+    '<button id="dismissBtn" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer">x</button>';
   document.getElementById('shell').appendChild(bar);
+  document.getElementById('activateBtn').addEventListener('click', function(){ activateTier(tier); });
+  document.getElementById('dismissBtn').addEventListener('click', function(){ bar.remove(); });
 }
 
 function activateTier(tier){
   userTier=tier;
   sessionStorage.setItem('hw_tier',tier);
-  document.getElementById('activateBar')?.remove();
-  document.querySelectorAll('.tool-card.locked').forEach(card=>{
-    if(tier==='spectrum')card.classList.remove('locked');
-    else if(card.querySelector('.lock-pro'))card.classList.remove('locked');
+  var bar = document.getElementById('activateBar');
+  if(bar) bar.remove();
+  document.querySelectorAll('.tool-card.locked').forEach(function(card){
+    if(tier==='spectrum') card.classList.remove('locked');
+    else if(card.querySelector('.lock-pro')) card.classList.remove('locked');
   });
   showToast((tier==='spectrum'?'Spectrum':'Pro')+' unlocked!');
-  const pending=sessionStorage.getItem('hw_pending_tool');
-  if(pending){sessionStorage.removeItem('hw_pending_tool');setTimeout(()=>openTool(pending),400);}
+  var pending=sessionStorage.getItem('hw_pending_tool');
+  if(pending){ sessionStorage.removeItem('hw_pending_tool'); setTimeout(function(){ openTool(pending); },400); }
 }
 
 function restoreSession(){
